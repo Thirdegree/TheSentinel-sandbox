@@ -1,0 +1,55 @@
+{
+    "version": 1,
+    "formatters": {
+        "default": {
+            "format": "[%(asctime)s] | %(BotName)s v%(APP_VERS)s | %(levelname)s | %(message)s",
+            "datefmt": "%Y/%m/%d %H:%M:%S"
+        }
+    },
+
+    "handlers": {
+        "consoleHandler": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
+            "formatter": "default",
+            "stream": "ext://sys.stdout"
+        },
+
+        "rotateFileHandler": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "INFO",
+            "formatter": "default",
+            "filename": "logs\\_BotName__Logs.log",
+            "maxBytes": 10485760,
+            "backupCount": 5,
+            "encoding": "utf8"
+        },
+
+        "rotateFileHandler_debug": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "DEBUG",
+            "formatter": "default",
+            "filename": "logs\\_BotName__Logs_Debug.log",
+            "maxBytes": 10485760,
+            "backupCount": 3,
+            "encoding": "utf8"
+        },
+
+        "smtpMailHandler": {
+            "class": "logging.handlers.SMTPHandler",
+            "level": "CRITICAL",
+            "formatter": "default",
+            "mailhost": "localhost",
+            "fromaddr": "Bugs@Layer7.Solutions",
+            "toaddrs": ["8438307505@msg.fi.google.com", "alerts@layer7.solutions"],
+            "subject": "*ERROR: %(BotName)s v%(APP_VERS)s*"
+        }  
+    },
+
+    "loggers": {
+        "root": {
+            "level": "DEBUG",
+            "handlers": ["consoleHandler", "rotateFileHandler", "rotateFileHandler_debug", "smtpMailHandler"]
+        }
+    }
+}
