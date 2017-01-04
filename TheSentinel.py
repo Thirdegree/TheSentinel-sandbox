@@ -9,7 +9,7 @@ import time
 import json
 import gc
 
-from .helpers import getSentinelLogger
+from .helpers import getSentinelLogger, Utility
 from .YouTube import YouTube
 from .DailyMotion import DailyMotion
 from .Vimeo import Vimeo
@@ -55,6 +55,7 @@ class TheSentinel(object):
 
         self.cache = Memcache()
         self.database = SentinelDatabase()
+        self.utility = Utility()
         self.blacklistSub = 'TheSentinelBot'
 
 
@@ -81,12 +82,25 @@ class TheSentinel(object):
     def writeSubs(self):
         subs = []
         for sentinel, _ in self.sentinels:
-            subs += [i for i in sentinel.subsModdedWrite]
+            subs += [self.add_subreddit(str(i[0]), str(sentinel), i[1], i[0])  for i in sentinel.subsModdedWrite]
         #subs = sorted(subs, key=lambda x: x[1], reverse=True)  # by size
         subs = list(set([str(i[0]) for i in subs]))
         subs = sorted(subs, key=str.lower)    # alphabetically
         with open('C:\\inetpub\\wwwroot\\Layer7.Solutions\\resources\\TheSentinelSubs.txt', 'w') as file:    
             file.write("\n".join(subs))
+
+    def remove_subreddit(self, subreddit):
+        pass
+        self.utility.remove_subreddit(subreddit)
+
+    def add_subreddit(self, subreddit, botname, subscribers, thing=None):
+        pass
+        if not thing:
+            self.utility.add_subreddit(subreddit, botname, subscribers)
+        else:
+            self.utility.add_subreddit(str(thing), botname, thing.subscribers)
+            return (thing, subscribers)
+
 
 
     #REDDIT SPECIFIC HERE

@@ -34,7 +34,7 @@ class SentinelInstance():
         self.blacklisted_subs = ['pokemongo']
 
     def __str__(self):
-        return '/r/' + self.me.name
+        return self.me.name
 
 
     def clearQueue(self):
@@ -95,6 +95,7 @@ class SentinelInstance():
 
             if "You have been removed as a moderator from " in message.body:
                 self.logger.info("{} | Removed from subreddit /r/{}".format(self.me, str(message.subreddit)))
+                self.masterClass.remove_subreddit(str(message.subreddit))
                 self.subsModded = [i for i in self.r.user.moderator_subreddits(limit=None)]
                 self.masterClass.writeSubs()
                 self.logger.info("{} | Now mods {} users.".format(self.me, self.subCount))
@@ -242,6 +243,7 @@ class SentinelInstance():
                 self.logger.info(u'{} | Accepted mod invite for /r/{}'.format(self.me, message.subreddit))
                 self.logger.info(u'{} | Now mods {} users'.format(self.me, self.subCount))
                 
+                self.masterClass.add_subreddit(str(message.subreddit), str(self.me), message.subreddit.subscribers)
                 self.masterClass.writeSubs()
             else:
                 self.logger.info(u'{} | Bot at capacity'.format(self.me))

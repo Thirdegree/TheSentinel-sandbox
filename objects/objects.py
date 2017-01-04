@@ -7,7 +7,7 @@ from memcached_stats import MemcachedStats # https://github.com/dlrust/python-me
 from ..objects import datapulls
 import requests
 
-from ..helpers import Blacklist, SlackHooks, getSentinelLogger, NSA
+from ..helpers import Blacklist, SlackHooks, getSentinelLogger, NSA, Utility
 from ..exceptions import InvalidAddition
 
 
@@ -85,7 +85,10 @@ class APIProcess(object):
     #(key, data)
     def _getData(self, url):
         self.logger.debug('Getting URL Redirect Data')
-        url = requests.get(url).url #deals with redirects
+        try:
+            url = requests.get(url).url #deals with redirects
+        except requests.exceptions.ConnectionError:
+            raise KeyError("Problem resolving url. No match.")
         try:
             for i in self.regexs:
                 match = re.search(self.regexs[i], url)

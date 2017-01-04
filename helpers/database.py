@@ -1,7 +1,6 @@
 import psycopg2
 import configparser
 import os
-import chardet
 
 from .SentinelLogger import getSentinelLogger
 
@@ -14,7 +13,7 @@ defaultpass = Config.get('Database', 'Password')
 defaultdbnam = 'TheTraveler'
 
 
-class Database():
+class Database(object):
     def __init__(self, dbname=defaultdbnam, username=defaultun, password=defaultpass):
         # Initialize the logger
         self.logger = getSentinelLogger()
@@ -164,6 +163,24 @@ class NSA(Database):
         newcur.close()
         self.logger.debug("Fetched {} users".format(len(fetched)))
         return [i[0] for i in fetched] # list of tuples -> list of thingids
+
+class Utility(Database):
+    def __init__(self, dbname='application'):
+        super(Utility, self).__init__(dbname=dbname)
+
+    def add_subreddit(self, subreddit, botname, subscribers, category='tsb'):
+        execString1 = "INSERT INTO sr_clients (subreddit, redditbot, category, sr_name, subscribers) VALUES (LOWER(%s), %s, %s, %s, %s)"
+        updateString = "UPDATE sr_clients SET subscribers=%s where subreddit=LOWER(%s)"
+        self.c.execute("SELECT * FROM sr_clients WHERE subreddit=LOWER(%s)", (subreddit,))
+        fetched = self.c.fetchone()
+        if fetched:
+            self.c.execute(updateString, (subscribers, subreddit))
+        else:
+            self.c.execute(execString1, (subreddit, botname, category, subreddit, subscribers))
+
+    def remove_subreddit(self, subreddit):
+        execString1 = "DELETE FROM sr_client WHERE subreddit=LOWER(%s)"
+        self.c.execute(execString1, (subreddit,))
 
 class oAuthDatabase(Database):
 
