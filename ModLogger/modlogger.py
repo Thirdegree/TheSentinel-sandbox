@@ -6,8 +6,8 @@ class ModLogger(object):
         self.r = r
         self.logger = getSentinelLogger()
         self.db = ModloggerDB()
-        self.opt_ins = self.db.get_subs_enabled()
-        subs_intersec = list(set(subs) & set(self.opt_ins))
+        self.opt_ins = [i.lower() for i in self.db.get_subs_enabled()]
+        subs_intersec = list(set([i.lower() for i in subs]) & set(self.opt_ins))
         self.modLogMulti = self.r.subreddit("+".join(subs_intersec))
 
 
