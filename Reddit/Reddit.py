@@ -2,6 +2,7 @@ import praw, re, time, requests, sys
 from ..helpers.responses import *
 from ..helpers import getSentinelLogger, SlackNotifier
 from ..objects import Memcache
+from ..ModLogger import ModLogger
 
 class SentinelInstance():
     def __init__(self, oauth, queue, masterClass):
@@ -30,6 +31,7 @@ class SentinelInstance():
         self.cache = Memcache()
         self.subscriberLimit = 20000000
         self.notifier = SlackNotifier()
+        self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
 
         self.blacklisted_subs = ['pokemongo']
 

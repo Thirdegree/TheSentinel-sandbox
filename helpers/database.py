@@ -182,6 +182,35 @@ class Utility(Database):
         execString1 = "DELETE FROM sr_client WHERE subreddit=LOWER(%s)"
         self.c.execute(execString1, (subreddit,))
 
+class ModloggerDB(Database):
+    def get_subs_enabled(self):
+        execString1 = "SELECT subreddit FROM sub_settings WHERE modlog_enabled=true"
+        self.c.execute(execString1)
+        fetched = self.c.fetchall()
+        if fetched:
+            return [i[0] for i in fetched]
+        return []
+
+    def get_last_seen(self, limit=100):
+        execString1 = "SELECT ModActionID from modlog limit " + str(limit)
+        self.c.execute(execString1)
+        fetched = self.c.fetchall()
+        if fetched:
+            return [i[0] for i in fetched]
+        return []
+
+    def log_items(self, kwargs_list):
+        
+        if kwargs_list:
+            args = b",".join([self.c.mogrify("(%(thing_id)s, %(mod_name)s, %(author_name)s, %(action)s, %(action_reason)s, %(permalink)s, %(thingcreated_utc)s, %(subreddit)s, %(modaction_id)s, %(title)s)", x) for x in kwargs_list])
+            execString1 = b'INSERT INTO modlog (ThingID, Mod, Author, Action, ActionReason, PermaLink, ThingCreated_UTC, Subreddit, ModActionID, Title) VALUES ' + args
+            self.c.execute(execString1)
+            self.logger.debug("Added {} items to modLogger database.".format(len(kwargs_list)))
+
+    def is_logged(self, modActionID):
+        self.c.execute('SELECT * FROM modlog WHERE ModActionID=(%s)', (modActionID))
+        return bool(self.c.fetchone())
+
 class oAuthDatabase(Database):
 
     def get_accounts(self, id):
