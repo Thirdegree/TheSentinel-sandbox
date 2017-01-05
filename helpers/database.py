@@ -191,12 +191,14 @@ class ModloggerDB(Database):
             return [i[0] for i in fetched]
         return []
 
-    def get_last_seen(self, limit=100):
+    def get_last_seen(self, limit=1000):
         execString1 = "SELECT ModActionID from modlog limit " + str(limit)
         self.c.execute(execString1)
         fetched = self.c.fetchall()
         if fetched:
+            self.logger.debug("Found %s items"%len(fetched))
             return [i[0] for i in fetched]
+        self.logger.debug("Found 0 items")
         return []
 
     def log_items(self, kwargs_list):
@@ -205,10 +207,11 @@ class ModloggerDB(Database):
             args = b",".join([self.c.mogrify("(%(thing_id)s, %(mod_name)s, %(author_name)s, %(action)s, %(action_reason)s, %(permalink)s, %(thingcreated_utc)s, %(subreddit)s, %(modaction_id)s, %(title)s)", x) for x in kwargs_list])
             execString1 = b'INSERT INTO modlog (ThingID, Mod, Author, Action, ActionReason, PermaLink, ThingCreated_UTC, Subreddit, ModActionID, Title) VALUES ' + args
             self.c.execute(execString1)
-            self.logger.debug("Added {} items to modLogger database.".format(len(kwargs_list)))
+            self.logger.info("Added {} items to modLogger database.".format(len(kwargs_list)))
+
 
     def is_logged(self, modActionID):
-        self.c.execute('SELECT * FROM modlog WHERE ModActionID=(%s)', (modActionID))
+        self.c.execute('SELECT * FROM modlog WHERE ModActionID=(%s)', (modActionID,))
         return bool(self.c.fetchone())
 
 class oAuthDatabase(Database):

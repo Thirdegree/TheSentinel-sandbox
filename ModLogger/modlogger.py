@@ -6,19 +6,33 @@ class ModLogger(object):
         self.r = r
         self.logger = getSentinelLogger()
         self.db = ModloggerDB()
-        self.opt_ins = [i.lower() for i in self.db.get_subs_enabled()]
-        subs_intersec = list(set([i.lower() for i in subs]) & set(self.opt_ins))
-        self.modLogMulti = self.r.subreddit("+".join(subs_intersec))
+        self.subs = subs
 
+    @property
+    def opt_ins(self):
+        return [i.lower() for i in self.db.get_subs_enabled()]
+
+    @property
+    def modLogMulti(self):
+        subs_intersec = list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
+        try:
+            return self.r.subreddit("+".join(subs_intersec))
+        except TypeError:
+            return None
 
     def gather_items(self):
         arg_dicts = []
         last_seen = self.db.get_last_seen()
-        log_generator = self.modLogMulti.mod.log()
+        if self.modLogMulti:
+            log_generator = self.modLogMulti.mod.log()
+        else:
+            return
         try:
-            item = log_generator.next()
+            #item = log_generator.next()
 
-            while item not in last_seen:
+            for item in log_generator:
+                if self.db.is_logged(item.id):
+                    continue
                 arg_dict = {
                     "thing_id": item.target_fullname,
                     "mod_name": str(item.mod),
