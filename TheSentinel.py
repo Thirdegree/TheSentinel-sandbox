@@ -169,8 +169,18 @@ class TheSentinel(object):
             return True
         return False
 
-    def addUserBlacklist(self, thing, subreddit):
-        self.database.add_blacklisted_user()
+    def addUserBlacklist(self, author, mod, subreddit):
+        self.database.add_blacklisted_user(author, mod, subreddit)
+        if author in self.user_blacklist:
+            self.user_blacklist[author] += subreddit
+        else:
+            self.user_blacklist[author] = [subreddit]
+
+    def removeUserBlacklist(self, author, subreddit):
+        self.database.remove_blacklisted_user(author, subreddit)
+        if author in self.user_blacklist:
+            if subreddit in self.user_blacklist[author]:
+                self.user_blacklist[author].remove(subreddit)
 
     def isBlacklisted(self, subreddit, url):
         for i, k in self.processes.items():

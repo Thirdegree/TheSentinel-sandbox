@@ -217,40 +217,33 @@ class ModloggerDB(Database):
 
 class UserBlacklist(Database):
     def get_blacklisted_users(self):
-        execString1 = "SELECT (author, subreddits) FROM user_blacklist"
+        execString1 = "SELECT (author, mod, subreddit) FROM user_blacklist"
         self.c.execute(execString1)
         fetched = self.c.fetchall()
         users = {}
         if fetched:
-            for author, subreddits in fetched:
-                subreddits = json.loads(subreddits)
-                users[author] = subreddits
+            for author, _, subreddit in fetched:
+                if author in users:
+                    users[author] += subreddit
+                else:
+                    users[author] = [subreddit]
         return users
 
-    def add_blacklisted_user(self, author, subreddit):
-        execString1 = "SELECT (author, subreddits) FROM user_blacklist where author=%s"
-        self.c.execute(execString1, (author,))
+    def add_blacklisted_user(self, author, mod, subreddit):
+        execString1 = "SELECT (author, subreddit) FROM user_blacklist where author=%s and subreddit=%s"
+        self.c.execute(execString1, (author, subreddit))
         fetched = self.c.fetchone()
         if fetched:
-            author, subreddits = fetched
-            subreddits = json.loads(subreddits)
-            if subreddit not in subreddits:
-                subreddits.append(subreddit)
-                self.c.execute("UPDATE user_blacklist SET subreddits=%s WHERE author=%s", (str(subreddits), author))
+            return True
         else:
-            self.c.execute("INSERT INTO user_blacklist (author, subreddits) VALUES (%s, %s)", (author, str([subreddits])))
+            self.c.execute("INSERT INTO user_blacklist (author, mod, subreddit) VALUES (%s, %s, %s)", (author, mod, subreddit))
         return True
 
     def remove_blacklisted_user(self, author, subreddit):
-        execString1 = "SELECT (author, subreddits) FROM user_blacklist where author=%s"
-        self.c.execute(execString1, (author,))
-        fetched = self.c.fetchone()
-        if fetched:
-            author, subreddits = fetched
-            subreddits = json.loads(subreddits)
-            if subreddit in subreddits:
-                subreddits.removed(subreddit)
-                self.c.execute("UPDATE user_blacklist SET subreddits=%s WHERE author=%s", (author, str(subreddits)))
+        execString1 = "DELETE FROM user_blacklist where author=%s and subreddit=%s"
+        self.c.execute(execString1, (author, subreddit))
+        return True
+
 
 class oAuthDatabase(Database):
 

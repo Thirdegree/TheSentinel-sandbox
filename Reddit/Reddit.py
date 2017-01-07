@@ -95,6 +95,14 @@ class SentinelInstance():
                 self.removeBlacklist(message)
                 continue
 
+            if "add to user blacklist" in message.subject.lower():
+                self.addUserBlacklist(message)
+                continue
+
+            if "remove from user blacklist" in message.subject.lower():
+                self.removeUserBlacklist(message)
+                continue
+
             if "You have been removed as a moderator from " in message.body:
                 self.logger.info("{} | Removed from subreddit /r/{}".format(self.me, str(message.subreddit)))
                 self.masterClass.remove_subreddit(str(message.subreddit))
@@ -176,6 +184,23 @@ class SentinelInstance():
                 self.logger.debug("Adding {} to cache".format(i.fullname))
                 self.cache.add(i)
         self.masterClass.markProcessed(toAdd)
+
+    def addUserBlacklist(self, thing):
+        regex = r"(?:/?u/)?\w+"
+        sub_string = re.search(self.subextractor, thing.subject)
+        username = re.search(regex, thing.body)
+        if username:
+            username = username.group(1)
+
+        try:
+            mods = [i for i in subreddit.moderator]
+
+            if self.me not in mods:
+                thing.reply(ForbiddenResponse.format(self.getCorrectBot(subreddit)))
+            elif thing.author in mods:
+                self.logger.info(u'{} | Add To User Blacklist request from: {}'.format(self.me, thing.author))
+                self.masterClass.addUserBlacklist(username, str(thing.author), sub_string)
+
 
     def addBlacklist(self, thing):
         sub_string = re.search(self.subextractor, thing.subject)
