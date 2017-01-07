@@ -7,7 +7,7 @@ from memcached_stats import MemcachedStats # https://github.com/dlrust/python-me
 from ..objects import datapulls
 import requests
 
-from ..helpers import Blacklist, SlackHooks, getSentinelLogger, NSA, Utility
+from ..helpers import Blacklist, SlackHooks, getSentinelLogger, NSA, Utility, UserBlacklist
 from ..exceptions import InvalidAddition
 
 
@@ -280,7 +280,7 @@ class SCAPIProcess(APIProcess):
 
 
 
-class SentinelDatabase(Blacklist, SlackHooks, NSA):
+class SentinelDatabase(Blacklist, SlackHooks, NSA, UserBlacklist):
     pass
 
 class Memcache(object):

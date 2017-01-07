@@ -278,7 +278,6 @@ class SentinelInstance():
                 self.checkInbox()
                 #self.checkModmail()
                 self.clearQueue()
-                self.modlogger.log()
                 if self.masterClass.killThreads:
                     self.logger.info("{} | Acknowledging killThread".format(self.me))
             except praw.exceptions.APIException:

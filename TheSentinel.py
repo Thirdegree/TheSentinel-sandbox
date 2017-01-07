@@ -55,6 +55,7 @@ class TheSentinel(object):
 
         self.cache = Memcache()
         self.database = SentinelDatabase()
+        self.user_blacklist = self.database.get_blacklisted_users()
         self.utility = Utility()
         self.blacklistSub = 'TheSentinelBot'
 
@@ -157,7 +158,19 @@ class TheSentinel(object):
             self.logger.debug(u'Checking blacklist for {} | URL: {}'.format(thing.fullname, url))
             if self.isBlacklisted(str(thing.subreddit), url):
                 return 2, thing
+            if self.isUserBlacklisted(str(thing.subreddit), str(thing.author))
+                return 2, thing
         return hasContent, None
+
+    def isUserBlacklisted(self, subreddit, author):
+        if str(thing.author) in self.user_blacklist:
+            if (str(thing.subreddit) in self.user_blacklist[str(thing.author)] or
+                    self.blacklistSub in self.user_blacklist[str(thing.author)]):
+            return True
+        return False
+
+    def addUserBlacklist(self, thing, subreddit):
+        self.database.add_blacklisted_user()
 
     def isBlacklisted(self, subreddit, url):
         for i, k in self.processes.items():
