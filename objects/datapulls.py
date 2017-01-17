@@ -26,6 +26,22 @@ GAPIpulls = {
         } for i in x['items']]),
 }
 
+VidmeAPIPulls = {
+    'video': (lambda x: [{
+        'media_author': (x['video']['user']['username']),
+        'media_channel_id': (x['video']['user']['user_id']),
+        'media_platform': 'Vidme'
+        }])
+}
+
+TwitchAPIPulls = {
+    'channel': (lambda x: [{
+        'media_author': (x['display_name']),
+        'media_channel_id': (x['_id']),
+        'media_platform': ('Twitch'),
+        }])
+}
+
 DMpulls = {
     'video': (lambda x: [{
         'media_author': (x['owner.screenname']),
