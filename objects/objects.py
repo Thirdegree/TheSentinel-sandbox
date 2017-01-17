@@ -146,7 +146,7 @@ class TwitchAPIProcess(APIProcess):
         }
         
         regexs = {
-            'user': r'tv\.\/(.*?)\/',
+            'user': r'\.tv\/(.*?)(?:$|\/)',
         }
 
         Config = configparser.ConfigParser()
@@ -155,7 +155,7 @@ class TwitchAPIProcess(APIProcess):
         
 
         super(TwitchAPIProcess, self).__init__(Twitch_URLS, regexs, datapulls.TwitchAPIPulls)
-        self.headers = {'Accept': 'application/vnd.twitchtv.v3+json', 'Client-ID': api_key}
+        self.headers = {'Accept': 'application/vnd.twitchtv.v5+json', 'Client-ID': api_key}
 
     def _getJSONResponse(self, data, key):
         response = requests.get(self.API_URLS[key].format(data, self.api_key), headers=self.headers)

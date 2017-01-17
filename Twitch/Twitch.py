@@ -9,4 +9,4 @@ class Twitch(MediaProcess):
 
         mediaURLs = ['twitch.tv']
         self.logger.debug('Initiating TwitchAPI Datapull')
-        super(YouTube, self).__init__(TwitchAPIProcess, mediaURLs)
+        super(Twitch, self).__init__(TwitchAPIProcess, mediaURLs)
