@@ -7,7 +7,7 @@ APP_VERS="1.1.0"
 
 
 
-LoggerConfigLocation = 'C:\\temp\\TheSentinelRewrite\\helpers\\SentinelLogger\\_Logger_Config.json'
+LoggerConfigLocation = 'TheSentinel\helpers\SentinelLogger\_Logger_Config.json'
 with open(LoggerConfigLocation, 'rt') as f:
     config = json.load(f)
 
