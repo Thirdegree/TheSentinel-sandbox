@@ -120,6 +120,21 @@ class APIProcess(object):
                 pass
         return alldata
 
+class VidmeAPIProcess(APIProcess):
+    def __init__(self):
+
+        self.logger = getSentinelLogger()
+
+        Vidme_URLS = {
+            'video': 'https://api.vid.me/videoByUrl?url={}',
+        }
+
+        regexs = {
+            'video': r'(https:\/\/vid\.me\/.*)',
+        }
+
+        super(VidmeAPIProcess, self).__init__(Vidme_URLS, regexs, datapulls.VidmeAPIPulls)
+
 class TwitchAPIProcess(APIProcess):
     def __init__(self):
 
