@@ -10,7 +10,7 @@ Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
 
 defaultun = Config.get('Database', 'Username')
 defaultpass = Config.get('Database', 'Password')
-defaultdbnam = 'TheTraveler'
+defaultdbnam = 'Zion'
 
 
 class Database(object):
@@ -46,7 +46,7 @@ class Blacklist(Database):
                 return True
         """
         if media_channel_id:
-            self.c.execute("SELECT * FROM thesentinel_view WHERE (lower(subreddit)=lower(%s) OR subreddit='YT_Killer' OR subreddit='TheSentinelBot') AND media_channel_id=%s AND removed!=true and blacklisted=true", (subreddit, media_channel_id))
+            self.c.execute("SELECT 1 FROM sentinel_blacklist WHERE subreddit_id in (%(yt_killer)s, %(thesentinelbot)s, %({subreddit})s) AND media_channel_id=%(media_channel_id)s".format(subreddit=subreddit), {**self.subreddit_ids, **{'media_channel_id': media_channel_id}})            
             try:
                 fetched = self.c.fetchone()
             except psycopg2.ProgrammingError:
@@ -67,20 +67,28 @@ class Blacklist(Database):
             self.logger.debug(u'Channel already blacklisted: ChanID: {}'.format(kwargs['media_channel_id']))
             return True
         try:
-            self.c.execute("INSERT INTO thesentinel_view (thingid, author, subreddit, thingcreated_utc, permalink, body, removed, media_author, media_channel_id, media_link, media_platform, processed, blacklisted) VALUES (%(thingid)s, %(author)s, lower(%(subreddit)s), %(thingcreated_utc)s, %(permalink)s, %(body)s, false, %(media_author)s, %(media_channel_id)s, %(media_link)s, %(media_platform)s, true, true )", kwargs)            
+            execString1 = "INSERT INTO sentinel_blacklist (subreddit_id, media_channel_id, media_author, media_platform_id, blacklist_utc, blacklist_by) VALUES (%({subreddit})s, %(media_channel_id)s, %(media_author)s, %({media_platform})s, now(), %(author)s)".format(subreddit=subreddit, media_platform=media_platform)
+            self.c.execute(execString1, {**self.subreddit_ids, **self.media_platform_ids, **kwargs})
+
             self.logger.info(u'Added to database. ThingID: {thingid} | MediaChanID: {media_channel_id} | MediaAuth: {media_author}'.format(**kwargs))
             return True
         except KeyError as e:
             self.logger.error(u'Missing required parameter - {}'.format(e))
             raise KeyError(u"Missing required parameter - {}".format(e))
 
-    def removeBlacklist(self, subreddit, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
+    def removeBlacklist(self, subreddit, author, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
         if (not media_author) and (not media_channel_id):
             self.logger.warning(u'No video provided')
             raise RuntimeError("No video provided")
         if not self.isBlacklisted(subreddit, media_author, media_channel_id):
             return True
-        self.c.execute("UPDATE thesentinel_view SET blacklisted=false WHERE lower(subreddit)=lower(%s) AND (media_author=%s AND media_channel_id=%s)", (subreddit, media_author, media_channel_id))
+        kwargs = {
+            'media_channel_id':media_channel_id,
+            'author': author,
+            }
+        execString1 = "INSERT INTO sentinel_blacklist_history SELECT *, now() as unblacklist_utc, %(author)s as unblacklist_by FROM sentinel_blacklist WHERE subreddit_id=%({subreddit})s AND media_channel_id=%(media_channel_id)s;"
+        execString2 = "DELETE FROM sentinel_blacklist WHERE subreddit_id=%({subreddit})s AND media_channel_id=%(media_channel_id)s;"
+        self.c.execute((execString1+execString2).format(subreddit=subreddit), {**self.subreddit_ids, **kwargs})
 
         self.logger.info(u'Removed from Blacklist. MediaAuth: {} | ChanAuth: {}'.format(media_author, media_channel_id))
         return True
@@ -88,18 +96,16 @@ class Blacklist(Database):
     def isProcessed(self, subreddits):
         if not subreddits:
             return []
-        newcur = self.conn.cursor()
-        args = b",".join([self.c.mogrify("%s", (x,)) for x in subreddits])
-        execString = "SELECT thingid FROM thesentinel_view WHERE processed=true AND subreddit IN (" + args.decode("ascii", errors="ignore") + ")"#" ORDER BY thingcreated_utc DESC LIMIT 2000"        
-        
-        newcur.execute(execString)
-        fetched = newcur.fetchall()
-        newcur.execute("SELECT thingid FROM thesentinel_view WHERE subreddit='YT_Killer'")
-        fetched += newcur.fetchall()
-        newcur.close()
+
+        args = ','.join(list(set(["%({})s".format(sub.lower()) for sub in subreddits])))
+        execString = "SELECT thing_id from reddit_thing WHERE subreddit_id in (" + args + ")"
+        self.c.execString(execString, self.subreddit_ids)
+        fetched = self.c.fetchall()
+
         self.logger.debug("Fetched {} items for subreddits {}".format(len(fetched), subreddits))
         return [i[0] for i in fetched] # list of tuples -> list of thingids
 
+-----------------------------------
     def markProcessed(self, kwargs_list):
         if kwargs_list:
             self.logger.debug("Adding {} things".format(len(kwargs_list)))
@@ -119,6 +125,8 @@ class Blacklist(Database):
 
 
 class SlackHooks(Database):
+    def __init__(self):
+        super(SlackHooks, self).__init__(dbname='TheTraveler')
 
     def getHooks(self, slackTeam=None, subreddit=None):
         if (not slackTeam) and (not subreddit):
@@ -146,6 +154,8 @@ class SlackHooks(Database):
             raise RuntimeError("Please provide either a Subreddit or a Slack Team, not both")
 
 class NSA(Database):
+    def __init__(self):
+        super(NSA, self).__init__(dbname='TheTraveler')
 
     def addUsers(self, kwargs_list):
         if kwargs_list:
@@ -215,6 +225,8 @@ class ModloggerDB(Database):
         return bool(self.c.fetchone())
 
 class oAuthDatabase(Database):
+    def __init__(self):
+        super(oAuthDatabase, self).__init__(dbname='TheTraveler')
 
     def get_accounts(self, id):
         self.c.execute("SELECT app_id, app_secret, username, password FROM oauth_data WHERE agent_of=%s", (id,))
