@@ -26,7 +26,7 @@ class Database(object):
 
 class Blacklist(Database):
 
-    def isBlacklisted(self, subreddit, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
+    def isBlacklisted(self, subreddit, thing_id=None, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
         if (not media_author) and (not media_channel_id):
             self.logger.warning('No Video Provided')
             raise RuntimeError("No video provided")
@@ -46,7 +46,9 @@ class Blacklist(Database):
                 return True
         """
         if media_channel_id:
-            self.c.execute("SELECT 1 FROM sentinel_blacklist WHERE subreddit_id in (%(yt_killer)s, %(thesentinelbot)s, %({subreddit})s) AND media_channel_id=%(media_channel_id)s".format(subreddit=subreddit), {**self.subreddit_ids, **{'media_channel_id': media_channel_id}})            
+            subquery = "SELECT id FROM subreddit WHERE subreddit_name in ('YT_Killer', 'TheSentinelBot', {})".format(subreddit)
+            query = "SELECT 1 FROM sentinel_blacklist WHERE subreddit_id in ({}) AND media_channel_id=%(media_channel_id)s".format(subquery)
+            self.c.execute(query, media_channel_id=media_channel_id)            
             try:
                 fetched = self.c.fetchone()
             except psycopg2.ProgrammingError:
@@ -67,8 +69,10 @@ class Blacklist(Database):
             self.logger.debug(u'Channel already blacklisted: ChanID: {}'.format(kwargs['media_channel_id']))
             return True
         try:
-            execString1 = "INSERT INTO sentinel_blacklist (subreddit_id, media_channel_id, media_author, media_platform_id, blacklist_utc, blacklist_by) VALUES (%({subreddit})s, %(media_channel_id)s, %(media_author)s, %({media_platform})s, now(), %(author)s)".format(subreddit=subreddit, media_platform=media_platform)
-            self.c.execute(execString1, {**self.subreddit_ids, **self.media_platform_ids, **kwargs})
+            subreddit_id = "SELECT id FROM subreddit WHERE subreddit_name=%s"%subreddit
+            media_platform_id = "SELECT id FROM media_platform WHERE platform_name=%s"%kwargs['media_platform']
+            execString1 = "INSERT INTO sentinel_blacklist (subreddit_id, media_channel_id, media_author, media_platform_id, blacklist_utc, blacklist_by) VALUES (({}), %(media_channel_id)s, %(media_author)s, ({}), now(), %(author)s)".format(subreddit=subreddit_id, media_platform=media_platform_id)
+            self.c.execute(execString1, kwargs)
 
             self.logger.info(u'Added to database. ThingID: {thingid} | MediaChanID: {media_channel_id} | MediaAuth: {media_author}'.format(**kwargs))
             return True
@@ -86,9 +90,11 @@ class Blacklist(Database):
             'media_channel_id':media_channel_id,
             'author': author,
             }
-        execString1 = "INSERT INTO sentinel_blacklist_history SELECT *, now() as unblacklist_utc, %(author)s as unblacklist_by FROM sentinel_blacklist WHERE subreddit_id=%({subreddit})s AND media_channel_id=%(media_channel_id)s;"
-        execString2 = "DELETE FROM sentinel_blacklist WHERE subreddit_id=%({subreddit})s AND media_channel_id=%(media_channel_id)s;"
-        self.c.execute((execString1+execString2).format(subreddit=subreddit), {**self.subreddit_ids, **kwargs})
+        subreddit_id = "SELECT id FROM subreddit WHERE subreddit_name=%s"%subreddit
+
+        execString1 = "INSERT INTO sentinel_blacklist_history SELECT *, now() as unblacklist_utc, %(author)s as unblacklist_by FROM sentinel_blacklist WHERE subreddit_id=({subreddit_id}) AND media_channel_id=%(media_channel_id)s;"
+        execString2 = "DELETE FROM sentinel_blacklist WHERE subreddit_id=({subreddit_id}) AND media_channel_id=%(media_channel_id)s;"
+        self.c.execute((execString1+execString2).format(subreddit_id=subreddit_id), kwargs)
 
         self.logger.info(u'Removed from Blacklist. MediaAuth: {} | ChanAuth: {}'.format(media_author, media_channel_id))
         return True
@@ -97,30 +103,67 @@ class Blacklist(Database):
         if not subreddits:
             return []
 
-        args = ','.join(list(set(["%({})s".format(sub.lower()) for sub in subreddits])))
+        args = "SELECT id FROM subreddit WHERE subreddit_name in (" + ",".join(subreddits) + ")"
         execString = "SELECT thing_id from reddit_thing WHERE subreddit_id in (" + args + ")"
-        self.c.execString(execString, self.subreddit_ids)
+        self.c.execString(execString)
         fetched = self.c.fetchall()
 
         self.logger.debug("Fetched {} items for subreddits {}".format(len(fetched), subreddits))
         return [i[0] for i in fetched] # list of tuples -> list of thingids
 
------------------------------------
     def markProcessed(self, kwargs_list):
         if kwargs_list:
             self.logger.debug("Adding {} things".format(len(kwargs_list)))
-            args = b",".join([self.c.mogrify("(%(thing_id)s, %(author)s, %(subreddit)s, %(thingcreated_utc)s, %(permalink)s, %(body)s, %(media_author)s, %(media_channel_id)s, %(media_link)s, %(media_platform)s, false, true)", x) for x in kwargs_list])
+            args = []
+            args2 = []
+            for item in kwargs_list:
+                "%(thing_id)s, %(author)s, %(subreddit)s, %(thingcreated_utc)s, %(permalink)s, %(body)s, %(media_author)s, %(media_channel_id)s, %(media_link)s, %(media_platform)s, false, true)"
 
-            execString = b"INSERT INTO thesentinel_view (thingid, author, subreddit, thingcreated_utc, permalink, body, media_author, media_channel_id, media_link, media_platform, removed, processed) VALUES " + args
+                statement = "(%(thing_id)s, (SELECT id FROM subreddit where subreddit_name=%(subreddit)s), %(author)s, %(thingcreated_utc)s, %(thingedited_utc)s, %(parent_thing_id)s, %(permalink)s, %(body)s, %(title)s, %(url)s, %(flair_class)s, %(flair_text)s)"
+                args.append(self.c.mogrify(statement, item))
+
+                if not item['media_link']:
+                    continue
+                
+                media_info = {
+                    'authors': item['media_author'].split(','),
+                    'channel_ids': item['media_channel_id'].split(','),
+                    'links': item['media_link'].split(','),
+                    'platforms': item['media_platform'].split(','),
+
+                }
+                for i in range(len(media_info['links'])):
+                    query = "(%s, %s, %s, (SELECT id FROM media_platform WHERE platform_name=%s), %s, %s"
+                    call = (item['thing_id'], 
+                            media_info['authors'][i], 
+                            media_info['channel_ids'][i], 
+                            media_info['platforms'][i], 
+                            media_info['links'][i],
+                            item['thingcreated_utc'],)
+
+                    statement = self.c.mogrify(query, call)
+                    args2.append(statement)
+
+            args1len = len(args)
+            args2len = len(args2)
+
+            args = b",".join(args)
+            args2 = b",".join(args2)
+
+            execString = b"INSERT INTO reddit_thing (thing_id, subreddit_id, author, created_utc, edited_utc, parent_thing_id, permalink, thing_data, thing_title, link_url, flair_class, flair_text) VALUES " + args
+
+            execString2 = b"INSERT INTO media_info (thingid, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2
             #self.logger.warning("execString: {}".format(execString))
             self.c.execute(execString)
-            self.logger.debug("Added {} items to the database.".format(len(kwargs_list)))
+            self.c.execute(execString2)
+            self.logger.debug("Added {} items to the reddit_thing database, and {} items to the media_info database.".format(args1len, args2len))
             
-
+    """
     def next_value(self):
         self.c.execute("SELECT id FROM thing ORDER BY id DESC LIMIT 1")
         result = self.c.fetchone()
         return result[0]+1
+    """
 
 
 
@@ -194,7 +237,7 @@ class Utility(Database):
 
 class ModloggerDB(Database):
     def get_subs_enabled(self):
-        execString1 = "SELECT subreddit FROM sub_settings WHERE modlog_enabled=true"
+        execString1 = "SELECT subreddit_name FROM subreddit WHERE modlog_enabled=true"
         self.c.execute(execString1)
         fetched = self.c.fetchall()
         if fetched:
@@ -202,7 +245,7 @@ class ModloggerDB(Database):
         return []
 
     def get_last_seen(self, limit=1000):
-        execString1 = "SELECT ModActionID from modlog limit " + str(limit)
+        execString1 = "SELECT modactionid from modlog limit " + str(limit)
         self.c.execute(execString1)
         fetched = self.c.fetchall()
         if fetched:
@@ -214,14 +257,15 @@ class ModloggerDB(Database):
     def log_items(self, kwargs_list):
         
         if kwargs_list:
-            args = b",".join([self.c.mogrify("(%(thing_id)s, %(mod_name)s, %(author_name)s, %(action)s, %(action_reason)s, %(permalink)s, %(thingcreated_utc)s, %(subreddit)s, %(modaction_id)s, %(title)s)", x) for x in kwargs_list])
-            execString1 = b'INSERT INTO modlog (ThingID, Mod, Author, Action, ActionReason, PermaLink, ThingCreated_UTC, Subreddit, ModActionID, Title) VALUES ' + args
+            args = b",".join([self.c.mogrify("(%(thing_id)s, %(mod_name)s, %(action)s, %(action_reason)s, %(thingcreated_utc)s, %(modaction_id)s)", x) for x in kwargs_list])
+
+            execString1 = b'INSERT INTO modlog (thing_id, mod, action, actionreason, action_utc, modactionid) VALUES ' + args
             self.c.execute(execString1)
             self.logger.info("Added {} items to modLogger database.".format(len(kwargs_list)))
 
 
     def is_logged(self, modActionID):
-        self.c.execute('SELECT * FROM modlog WHERE ModActionID=(%s)', (modActionID,))
+        self.c.execute('SELECT * FROM modlog WHERE modactionid=%s', (modActionID,))
         return bool(self.c.fetchone())
 
 class oAuthDatabase(Database):

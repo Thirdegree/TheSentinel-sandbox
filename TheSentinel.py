@@ -194,11 +194,17 @@ class TheSentinel(object):
                 'thing_id': thing.fullname,
                 'author': str(thing.author),
                 'thingcreated_utc': thing.created_utc,
+                'thingedited_utc': thing.edited,
+                'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
                 'permalink': link,
                 'media_author': '',
                 'media_channel_id': '',
                 'media_platform': '',
                 'media_link': '',
+                'title': thing.title if type(thing) == praw.models.Submission else None,
+                'url': thing.url,
+                'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
+                'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
                 'body': (thing.body if type(thing) != praw.models.Submission else thing.selftext_html),
                 }
             try:
@@ -293,7 +299,7 @@ class TheSentinel(object):
     def addBlacklist(self, thing, subreddit, urls=[], isGlobal=False, values_dict=None):
         data = self.getInfo(thing, urls)
         for i in data:
-            i['thingid'] = thing.fullname if thing else self.database.next_value()
+            i['thingid'] = thing.fullname
             i['author'] = str(thing.author) if thing else values_dict['modname']
             i['subreddit'] = (self.blacklistSub if isGlobal else str(subreddit))
             i['thingcreated_utc'] = thing.created_utc if thing else time.time()
