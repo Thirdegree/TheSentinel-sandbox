@@ -18,7 +18,7 @@ class Database(object):
         # Initialize the logger
         self.logger = getSentinelLogger()
 
-        self.conn = psycopg2.connect("dbname='{}' user='{}' password='{}'".format(dbname, username, password))
+        self.conn = psycopg2.connect("host='localhost' dbname='{}' user='{}' password='{}'".format(dbname, username, password))
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.c = self.conn.cursor()
         self.c.execute("SET CLIENT_ENCODING TO 'UTF8';")

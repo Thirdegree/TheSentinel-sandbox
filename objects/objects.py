@@ -111,6 +111,8 @@ class APIProcess(object):
             alldata = self.data_pulls[key](jsonResponse) or []
         except TypeError:
             return []
+        except KeyError:
+            return []
         if key == 'playlist':
             self.logger.debug('Getting Playlist Data')
             key, jsonResponse = self._getJSONResponse(data, 'playlist videos')
@@ -146,7 +148,7 @@ class TwitchAPIProcess(APIProcess):
         }
         
         regexs = {
-            'user': r'tv\.\/(.*?)\/',
+            'user': r'\.tv\/(.*?)(?:$|\/)',
         }
 
         Config = configparser.ConfigParser()
@@ -155,7 +157,7 @@ class TwitchAPIProcess(APIProcess):
         
 
         super(TwitchAPIProcess, self).__init__(Twitch_URLS, regexs, datapulls.TwitchAPIPulls)
-        self.headers = {'Accept': 'application/vnd.twitchtv.v3+json', 'Client-ID': api_key}
+        self.headers = {'Accept': 'application/vnd.twitchtv.v5+json', 'Client-ID': api_key}
 
     def _getJSONResponse(self, data, key):
         response = requests.get(self.API_URLS[key].format(data, self.api_key), headers=self.headers)
@@ -167,8 +169,12 @@ class TwitchAPIProcess(APIProcess):
         if key == 'channel':
             return key, response.json()
 
-        return self._getJSONResponse(response.json()['users'][0]['_id'], 'channel')
-
+        try:
+            return self._getJSONResponse(response.json()['users'][0]['_id'], 'channel')
+        except IndexError:
+            return 'nousers', {}
+        except KeyError:
+            return 'nodata', {}
 
 
 class GAPIProcess(APIProcess):
