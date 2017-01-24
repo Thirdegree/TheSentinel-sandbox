@@ -158,11 +158,12 @@ class SentinelInstance():
         self.logger.debug('{} | Done w/ GetComments | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Edited'.format(self.me))
-        for edit in self.modMulti.mod.edited(limit=200):
-            if not edit.fullname in self.done:# and not self.masterClass.isProcessed(edit):
-                self.logger.debug("{} | Added edit to toAdd - {}".format(self.me, edit.fullname))
-                toAdd.append(edit)
-                self.done.add(edit.fullname)
+        for edit in self.modMulti.mod.edited(limit=100):
+            # stupid why would that make sesnse after edited
+            # if not edit.fullname in self.done:# and not self.masterClass.isProcessed(edit):
+            self.logger.debug("{} | Added edit to toAdd - {}".format(self.me, edit.fullname))
+            toAdd.append(edit)
+            self.done.add(edit.fullname)
         self.logger.debug('{} | Done w/ GetEdited | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Spam'.format(self.me))

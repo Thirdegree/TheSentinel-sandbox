@@ -111,6 +111,8 @@ class APIProcess(object):
             alldata = self.data_pulls[key](jsonResponse) or []
         except TypeError:
             return []
+        except KeyError:
+            return []
         if key == 'playlist':
             self.logger.debug('Getting Playlist Data')
             key, jsonResponse = self._getJSONResponse(data, 'playlist videos')
@@ -167,8 +169,12 @@ class TwitchAPIProcess(APIProcess):
         if key == 'channel':
             return key, response.json()
 
-        return self._getJSONResponse(response.json()['users'][0]['_id'], 'channel')
-
+        try:
+            return self._getJSONResponse(response.json()['users'][0]['_id'], 'channel')
+        except IndexError:
+            return 'nousers', {}
+        except KeyError:
+            return 'nodata', {}
 
 
 class GAPIProcess(APIProcess):
