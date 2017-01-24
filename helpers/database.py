@@ -26,7 +26,7 @@ class Database(object):
 
 class Blacklist(Database):
 
-    def isBlacklisted(self, subreddit, thing_id=None, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
+    def isBlacklisted(self, subreddit, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
         if (not media_author) and (not media_channel_id):
             self.logger.warning('No Video Provided')
             raise RuntimeError("No video provided")
@@ -117,8 +117,7 @@ class Blacklist(Database):
             args = []
             args2 = []
             for item in kwargs_list:
-                "%(thing_id)s, %(author)s, %(subreddit)s, %(thingcreated_utc)s, %(permalink)s, %(body)s, %(media_author)s, %(media_channel_id)s, %(media_link)s, %(media_platform)s, false, true)"
-
+                
                 statement = "(%(thing_id)s, (SELECT id FROM subreddit where subreddit_name=%(subreddit)s), %(author)s, %(thingcreated_utc)s, %(thingedited_utc)s, %(parent_thing_id)s, %(permalink)s, %(body)s, %(title)s, %(url)s, %(flair_class)s, %(flair_text)s)"
                 args.append(self.c.mogrify(statement, item))
 
@@ -150,9 +149,9 @@ class Blacklist(Database):
             args = b",".join(args)
             args2 = b",".join(args2)
 
-            execString = b"INSERT INTO reddit_thing (thing_id, subreddit_id, author, created_utc, edited_utc, parent_thing_id, permalink, thing_data, thing_title, link_url, flair_class, flair_text) VALUES " + args
+            execString = b"INSERT INTO reddit_thing (thing_id, subreddit_id, author, created_utc, edited_utc, parent_thing_id, permalink, thing_data, thing_title, link_url, flair_class, flair_text) VALUES " + args + "ON CONFLICT DO NOTHING"
 
-            execString2 = b"INSERT INTO media_info (thingid, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2
+            execString2 = b"INSERT INTO media_info (thingid, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2 + " ON CONFLICT DO NOTHING"
             #self.logger.warning("execString: {}".format(execString))
             self.c.execute(execString)
             self.c.execute(execString2)
