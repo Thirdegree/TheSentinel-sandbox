@@ -1,4 +1,5 @@
 import praw, re, time, requests, sys
+from collections import deque
 from ..helpers.responses import *
 from ..helpers import getSentinelLogger, SlackNotifier
 from ..objects import Memcache
@@ -32,6 +33,7 @@ class SentinelInstance():
         self.subscriberLimit = 20000000
         self.notifier = SlackNotifier()
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
+        self.edited_done = deque()
 
         self.blacklisted_subs = ['pokemongo']
 
@@ -158,12 +160,13 @@ class SentinelInstance():
         self.logger.debug('{} | Done w/ GetComments | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Edited'.format(self.me))
+        editlist = []
         for edit in self.modMulti.mod.edited(limit=100):
             # stupid why would that make sesnse after edited
-            # if not edit.fullname in self.done:# and not self.masterClass.isProcessed(edit):
-            self.logger.debug("{} | Added edit to toAdd - {}".format(self.me, edit.fullname))
-            toAdd.append(edit)
-            self.done.add(edit.fullname)
+            if not edit.fullname in self.edited_done:# and not self.masterClass.isProcessed(edit):
+                self.logger.debug("{} | Added edit to toAdd - {}".format(self.me, edit.fullname))
+                editlist.append(edit)
+                self.edited_done.append(edit.fullname)
         self.logger.debug('{} | Done w/ GetEdited | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Spam'.format(self.me))
@@ -174,9 +177,9 @@ class SentinelInstance():
                 self.done.add(spam.fullname)
         self.logger.debug('{} | Done w/ GetSpam | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
         
-        if toAdd:
-            self.logger.debug("Adding {} items to cache".format(len(toAdd)))
-            for i in toAdd:
+        if (toAdd + editlist):
+            self.logger.debug("Adding {} items to cache".format(len(toAdd+editlist)))
+            for i in toAdd + editlist:
                 self.logger.debug("Adding {} to cache".format(i.fullname))
                 self.cache.add(i)
         self.masterClass.markProcessed(toAdd)

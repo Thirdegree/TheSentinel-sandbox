@@ -32,7 +32,7 @@ class Blacklist(Database):
             raise RuntimeError("No video provided")
 
         if subreddit.lower() == 'videos':
-            self.logger.info(u'READ ONLY sub: {} | ChanID: {} | MediaPlatform: {}'.format(subreddit, media_channel_id, media_platform))
+            self.logger.debug(u'READ ONLY sub: {} | ChanID: {} | MediaPlatform: {}'.format(subreddit, media_channel_id, media_platform))
             return False
         """
         if media_author:
@@ -46,9 +46,13 @@ class Blacklist(Database):
                 return True
         """
         if media_channel_id:
+<<<<<<< HEAD
             subquery = "SELECT id FROM subreddit WHERE subreddit_name in ('YT_Killer', 'TheSentinelBot', {})".format(subreddit)
             query = "SELECT 1 FROM sentinel_blacklist WHERE subreddit_id in ({}) AND media_channel_id=%(media_channel_id)s".format(subquery)
             self.c.execute(query, media_channel_id=media_channel_id)            
+=======
+            self.c.execute("SELECT * FROM thesentinel_view WHERE (lower(subreddit)=lower(%s) OR lower(subreddit)='yt_killer' OR lower(subreddit)='thesentinelbot') AND media_channel_id=%s AND removed!=true and blacklisted=true", (subreddit, media_channel_id))
+>>>>>>> origin/master
             try:
                 fetched = self.c.fetchone()
             except psycopg2.ProgrammingError:
@@ -114,6 +118,7 @@ class Blacklist(Database):
     def markProcessed(self, kwargs_list):
         if kwargs_list:
             self.logger.debug("Adding {} things".format(len(kwargs_list)))
+<<<<<<< HEAD
             args = []
             args2 = []
             for item in kwargs_list:
@@ -152,6 +157,11 @@ class Blacklist(Database):
             execString = b"INSERT INTO reddit_thing (thing_id, subreddit_id, author, created_utc, edited_utc, parent_thing_id, permalink, thing_data, thing_title, link_url, flair_class, flair_text) VALUES " + args + "ON CONFLICT DO NOTHING"
 
             execString2 = b"INSERT INTO media_info (thingid, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2 + " ON CONFLICT DO NOTHING"
+=======
+            args = b",".join([self.c.mogrify("(%(thing_id)s, %(author)s, %(subreddit)s, %(thingcreated_utc)s, %(permalink)s, %(body)s, %(media_author)s, %(media_channel_id)s, %(media_link)s, %(media_platform)s, false, true)", x) for x in kwargs_list])
+
+            execString = b"INSERT INTO thesentinel_view (thingid, author, subreddit, thingcreated_utc, permalink, body, media_author, media_channel_id, media_link, media_platform, removed, processed) VALUES " + args 
+>>>>>>> origin/master
             #self.logger.warning("execString: {}".format(execString))
             self.c.execute(execString)
             self.c.execute(execString2)

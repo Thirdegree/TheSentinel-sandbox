@@ -35,11 +35,11 @@ VidmeAPIPulls = {
 }
 
 TwitchAPIPulls = {
-    'channel': (lambda x: [{
-        'media_author': (x['display_name']),
-        'media_channel_id': (x['_id']),
+    'user': (lambda x: [{
+        'media_author': (i['display_name']),
+        'media_channel_id': (i['_id']),
         'media_platform': ('Twitch'),
-        }])
+        } for i in x['users']])
 }
 
 DMpulls = {
