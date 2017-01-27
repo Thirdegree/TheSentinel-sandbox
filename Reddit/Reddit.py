@@ -1,4 +1,5 @@
 import praw, re, time, requests, sys
+from collections import deque
 from ..helpers.responses import *
 from ..helpers import getSentinelLogger, SlackNotifier
 from ..objects import Memcache
@@ -32,6 +33,7 @@ class SentinelInstance():
         self.subscriberLimit = 20000000
         self.notifier = SlackNotifier()
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
+        self.edited_done = deque()
 
         self.blacklisted_subs = ['pokemongo']
 
@@ -147,6 +149,7 @@ class SentinelInstance():
                 self.logger.debug("{} | Added Post to toAdd - {}".format(self.me, post.fullname))
                 toAdd.append(post)
                 self.done.add(post.fullname)
+        self.logger.debug('{} | Done w/ GetNew | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Comments'.format(self.me))
         for comment in self.modMulti.comments(limit=300):
@@ -154,13 +157,17 @@ class SentinelInstance():
                 self.logger.debug("{} | Added comment to toAdd - {}".format(self.me, comment.fullname))
                 toAdd.append(comment)
                 self.done.add(comment.fullname)
-        
+        self.logger.debug('{} | Done w/ GetComments | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
+
         self.logger.debug('{} | Getting Reddit Edited'.format(self.me))
-        for edit in self.modMulti.mod.edited(limit=200):
-            if not edit.fullname in self.done:# and not self.masterClass.isProcessed(edit):
+        editlist = []
+        for edit in self.modMulti.mod.edited(limit=100):
+            # stupid why would that make sesnse after edited
+            if not edit.fullname in self.edited_done:# and not self.masterClass.isProcessed(edit):
                 self.logger.debug("{} | Added edit to toAdd - {}".format(self.me, edit.fullname))
-                toAdd.append(edit)
-                self.done.add(edit.fullname)
+                editlist.append(edit)
+                self.edited_done.append(edit.fullname)
+        self.logger.debug('{} | Done w/ GetEdited | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Spam'.format(self.me))
         for spam in self.modMulti.mod.spam(limit=200):
@@ -168,11 +175,11 @@ class SentinelInstance():
                 self.logger.debug("{} | Added spam to toAdd - {}".format(self.me, spam.fullname))                
                 toAdd.append(spam)
                 self.done.add(spam.fullname)
-
+        self.logger.debug('{} | Done w/ GetSpam | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
         
-        if toAdd:
-            self.logger.debug("Adding {} items to cache".format(len(toAdd)))
-            for i in toAdd:
+        if (toAdd + editlist):
+            self.logger.debug("Adding {} items to cache".format(len(toAdd+editlist)))
+            for i in toAdd + editlist:
                 self.logger.debug("Adding {} to cache".format(i.fullname))
                 self.cache.add(i)
         self.masterClass.markProcessed(toAdd)
@@ -245,7 +252,7 @@ class SentinelInstance():
                 self.logger.info(u'{} | Accepted mod invite for /r/{}'.format(self.me, message.subreddit))
                 self.logger.info(u'{} | Now mods {} users'.format(self.me, self.subCount))
                 
-                self.masterClass.add_subreddit(str(message.subreddit), str(self.me), message.subreddit.subscribers)
+                self.masterClass.add_subreddit(str(message.subreddit), str(self.me), self.r.subreddit(message.subreddit).subscribers)
                 self.masterClass.writeSubs()
             else:
                 self.logger.info(u'{} | Bot at capacity'.format(self.me))
@@ -275,10 +282,14 @@ class SentinelInstance():
                 #self.modMulti = self.r.subreddit('mod')
 
                 self.checkContent()
+                self.logger.debug('{} | Done w/ checkContent | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
                 self.checkInbox()
+                self.logger.debug('{} | Done w/ checkInbox | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
                 #self.checkModmail()
                 self.clearQueue()
+                self.logger.debug('{} | Done w/ clearQueue | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
                 self.modlogger.log()
+                self.logger.debug('{} | Done w/ modlogger.log | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
                 if self.masterClass.killThreads:
                     self.logger.info("{} | Acknowledging killThread".format(self.me))
             except praw.exceptions.APIException:

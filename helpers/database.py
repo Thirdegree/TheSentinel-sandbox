@@ -18,7 +18,7 @@ class Database(object):
         # Initialize the logger
         self.logger = getSentinelLogger()
 
-        self.conn = psycopg2.connect("dbname='{}' user='{}' password='{}'".format(dbname, username, password))
+        self.conn = psycopg2.connect("host='localhost' dbname='{}' user='{}' password='{}'".format(dbname, username, password))
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.c = self.conn.cursor()
         self.c.execute("SET CLIENT_ENCODING TO 'UTF8';")
@@ -32,7 +32,7 @@ class Blacklist(Database):
             raise RuntimeError("No video provided")
 
         if subreddit.lower() == 'videos':
-            self.logger.info(u'READ ONLY sub: {} | ChanID: {} | MediaPlatform: {}'.format(subreddit, media_channel_id, media_platform))
+            self.logger.debug(u'READ ONLY sub: {} | ChanID: {} | MediaPlatform: {}'.format(subreddit, media_channel_id, media_platform))
             return False
         """
         if media_author:
@@ -46,7 +46,7 @@ class Blacklist(Database):
                 return True
         """
         if media_channel_id:
-            self.c.execute("SELECT * FROM thesentinel_view WHERE (lower(subreddit)=lower(%s) OR subreddit='YT_Killer' OR subreddit='TheSentinelBot') AND media_channel_id=%s AND removed!=true and blacklisted=true", (subreddit, media_channel_id))
+            self.c.execute("SELECT * FROM thesentinel_view WHERE (lower(subreddit)=lower(%s) OR lower(subreddit)='yt_killer' OR lower(subreddit)='thesentinelbot') AND media_channel_id=%s AND removed!=true and blacklisted=true", (subreddit, media_channel_id))
             try:
                 fetched = self.c.fetchone()
             except psycopg2.ProgrammingError:
@@ -105,7 +105,7 @@ class Blacklist(Database):
             self.logger.debug("Adding {} things".format(len(kwargs_list)))
             args = b",".join([self.c.mogrify("(%(thing_id)s, %(author)s, %(subreddit)s, %(thingcreated_utc)s, %(permalink)s, %(body)s, %(media_author)s, %(media_channel_id)s, %(media_link)s, %(media_platform)s, false, true)", x) for x in kwargs_list])
 
-            execString = b"INSERT INTO thesentinel_view (thingid, author, subreddit, thingcreated_utc, permalink, body, media_author, media_channel_id, media_link, media_platform, removed, processed) VALUES " + args
+            execString = b"INSERT INTO thesentinel_view (thingid, author, subreddit, thingcreated_utc, permalink, body, media_author, media_channel_id, media_link, media_platform, removed, processed) VALUES " + args 
             #self.logger.warning("execString: {}".format(execString))
             self.c.execute(execString)
             self.logger.debug("Added {} items to the database.".format(len(kwargs_list)))

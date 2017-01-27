@@ -9,4 +9,4 @@ class Vidme(MediaProcess):
 
         mediaURLs = ['vid.me',]
         self.logger.debug('Initializing Vidme Datapull')
-        super(Vimeo, self).__init__(VidmeAPIProcess, mediaURLs)
+        super(Vidme, self).__init__(VidmeAPIProcess, mediaURLs)

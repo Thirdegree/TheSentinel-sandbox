@@ -7,7 +7,6 @@ import praw
 import sys
 import time
 import json
-import gc
 
 from .helpers import getSentinelLogger, Utility
 from .YouTube import YouTube
@@ -255,11 +254,6 @@ class TheSentinel(object):
 
     def startThreads(self):
         for sentinel, queue in self.sentinels:
-            # http://stackoverflow.com/questions/20629027/process-finished-with-exit-code-1073741571
-            # Seems to be some memory/recursion issue
-            sys.setrecursionlimit(100000)
-            threading.stack_size(200000000)
-
             # Existing Code
             thread = threading.Thread(target=sentinel.start)
             self.threads.append(thread)
@@ -341,7 +335,6 @@ class TheSentinel(object):
                         continue
                     if level == 2:
                         self.remove(thing)
-                gc.collect() # maybe garbage collection will help?
                 time.sleep(10)
 
             except KeyboardInterrupt:

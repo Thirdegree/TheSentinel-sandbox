@@ -112,6 +112,8 @@ class APIProcess(object):
             alldata = self.data_pulls[key](jsonResponse) or []
         except TypeError:
             return []
+        except KeyError:
+            return []
         if key == 'playlist':
             self.logger.debug('Getting Playlist Data')
             key, jsonResponse = self._getJSONResponse(data, 'playlist videos')
@@ -187,11 +189,10 @@ class TwitchAPIProcess(APIProcess):
 
         Twitch_URLS = {
             'user': 'https://api.twitch.tv/kraken/users?login={}',
-            'channel': 'https://api.twitch.tv/kraken/channels/{}',
         }
         
         regexs = {
-            'user': r'tv\.\/(.*?)\/',
+            'user': r'\.tv\/(.*?)(?:$|\/)',
         }
 
         Config = configparser.ConfigParser()
@@ -200,19 +201,8 @@ class TwitchAPIProcess(APIProcess):
         
 
         super(TwitchAPIProcess, self).__init__(Twitch_URLS, regexs, datapulls.TwitchAPIPulls)
-        self.headers = {'Accept': 'application/vnd.twitchtv.v3+json', 'Client-ID': api_key}
+        self.headers = {'Accept': 'application/vnd.twitchtv.v5+json', 'Client-ID': api_key}
 
-    def _getJSONResponse(self, data, key):
-        response = requests.get(self.API_URLS[key].format(data, self.api_key), headers=self.headers)
-
-        if response.status_code != 200:
-            self.logger.error(u'Get API Data Error. Error Code: {} | Data: {}'.format(response.status_code, self.API_URLS[key].format(data, self.api_key)))
-            response.raise_for_status()
-
-        if key == 'channel':
-            return key, response.json()
-
-        return self._getJSONResponse(response.json()['users'][0]['_id'], 'channel')
 
 
 
