@@ -16,6 +16,7 @@ from .Vimeo import Vimeo
 from .SoundCloud import SoundCloud
 from .Twitch import Twitch
 from .Vidme import Vidme
+from .Twitter import Twitter
 from .objects import Memcache, SentinelDatabase
 from .oAuths import oAuth
 from .Reddit import SentinelInstance
@@ -31,6 +32,7 @@ class TheSentinel(object):
         soundcloud = SoundCloud()
         twitch = Twitch()
         vidme = Vidme()
+        twitter = Twitter()
 
         # Initialize the logger
         self.logger = getSentinelLogger()
@@ -43,6 +45,7 @@ class TheSentinel(object):
             'SoundCloud': soundcloud,
             'Twitch': twitch,
             'Vidme': vidme,
+            'Twitter': twitter,
         }
 
         #must be added to manually until I find a better solution
