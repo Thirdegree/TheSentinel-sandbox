@@ -3,6 +3,7 @@ import os
 import re
 import memcache # https://pypi.python.org/pypi/python-memcached
 from memcached_stats import MemcachedStats # https://github.com/dlrust/python-memcached-stats
+import tweepy
 
 from ..objects import datapulls
 import requests
@@ -121,6 +122,50 @@ class APIProcess(object):
             except TypeError:
                 pass
         return alldata
+
+class TwitterAPIProcess(APIProcess):
+    def __init__(self):
+
+        self.logger = getSentinelLogger()
+
+
+        Config = configparser.ConfigParser()
+        Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
+        consumer_key = Config.get('TwitterAPI', 'CONSUMER_KEY')
+        consumer_secret = Config.get('TwitterAPI', 'CONSUMER_SECRET')
+        access_token = Config.get('TwitterAPI', 'ACCESS_TOKEN')
+        access_token_secret = Config.get("TwitterAPI", "ACCESS_TOKEN_SECRET")
+
+        auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+        auth.set_access_token(access_token, access_token_secret)
+        self.api = tweepy.API(auth)
+
+        Twitter_URLS = {
+            'tweet': lambda x: self.api.statuses_lookup(x),
+            'user': lambda x: self.api.get_user(x),
+        }
+
+        regexs = {
+            'tweet': r"status/(\d*)",
+            'user': r"r\.com\/(.*?)(?:\/|\?|\&|$|#)"
+        }
+
+        super(TwitterAPIProcess, self).__init__(Twitter_URLS, regexs, datapulls.TwitterAPIPulls)
+
+    def getInformation(self, url):
+        self.logger.debug(u'Getting Infomration. URL: {}'.format(url))
+        try:
+            key, data = self._getData(url)
+        except KeyError:
+            return []
+        obj = self.API_URLS[key](data)
+        try:
+            alldata = self.data_pulls[key](obj) or []
+        except TypeError:
+            return []
+        
+        return alldata
+
 
 class VidmeAPIProcess(APIProcess):
     def __init__(self):
