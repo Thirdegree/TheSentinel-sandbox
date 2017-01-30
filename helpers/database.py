@@ -46,13 +46,10 @@ class Blacklist(Database):
                 return True
         """
         if media_channel_id:
-<<<<<<< HEAD
             subquery = "SELECT id FROM subreddit WHERE subreddit_name in ('YT_Killer', 'TheSentinelBot', {})".format(subreddit)
             query = "SELECT 1 FROM sentinel_blacklist WHERE subreddit_id in ({}) AND media_channel_id=%(media_channel_id)s".format(subquery)
             self.c.execute(query, media_channel_id=media_channel_id)            
-=======
-            self.c.execute("SELECT * FROM thesentinel_view WHERE (lower(subreddit)=lower(%s) OR lower(subreddit)='yt_killer' OR lower(subreddit)='thesentinelbot') AND media_channel_id=%s AND removed!=true and blacklisted=true", (subreddit, media_channel_id))
->>>>>>> origin/master
+
             try:
                 fetched = self.c.fetchone()
             except psycopg2.ProgrammingError:
@@ -103,25 +100,26 @@ class Blacklist(Database):
         self.logger.info(u'Removed from Blacklist. MediaAuth: {} | ChanAuth: {}'.format(media_author, media_channel_id))
         return True
 
-    def isProcessed(self, subreddits):
-        if not subreddits:
-            return []
+    def isProcessed(self, subreddits=None):
 
-        args = "SELECT id FROM subreddit WHERE subreddit_name in (" + ",".join(subreddits) + ")"
-        execString = "SELECT thing_id from reddit_thing WHERE subreddit_id in (" + args + ")"
-        self.c.execString(execString)
+
+        statement = "SELECT thingid FROM sentinel_actions"
+        self.c.execString(statement)
         fetched = self.c.fetchall()
 
-        self.logger.debug("Fetched {} items for subreddits {}".format(len(fetched), subreddits))
+        self.logger.debug("Fetched {} items".format(len(fetched), subreddits))
         return [i[0] for i in fetched] # list of tuples -> list of thingids
 
     def markProcessed(self, kwargs_list):
         if kwargs_list:
             self.logger.debug("Adding {} things".format(len(kwargs_list)))
-<<<<<<< HEAD
             args = []
             args2 = []
+            args3 = []
             for item in kwargs_list:
+
+                statement = "(%(thing_id)s, false, now())"
+                args3.append(self.c.mogrify(statement, item))
                 
                 statement = "(%(thing_id)s, (SELECT id FROM subreddit where subreddit_name=%(subreddit)s), %(author)s, %(thingcreated_utc)s, %(thingedited_utc)s, %(parent_thing_id)s, %(permalink)s, %(body)s, %(title)s, %(url)s, %(flair_class)s, %(flair_text)s)"
                 args.append(self.c.mogrify(statement, item))
@@ -153,20 +151,25 @@ class Blacklist(Database):
 
             args = b",".join(args)
             args2 = b",".join(args2)
+            args3 = b",".join(args3)
 
-            execString = b"INSERT INTO reddit_thing (thing_id, subreddit_id, author, created_utc, edited_utc, parent_thing_id, permalink, thing_data, thing_title, link_url, flair_class, flair_text) VALUES " + args + "ON CONFLICT DO NOTHING"
+            execString = b"INSERT INTO reddit_thing (thing_id, subreddit_id, author, created_utc, edited_utc, parent_thing_id, permalink, thing_data, thing_title, link_url, flair_class, flair_text) VALUES " + args + b" ON CONFLICT DO NOTHING"
 
-            execString2 = b"INSERT INTO media_info (thingid, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2 + " ON CONFLICT DO NOTHING"
-=======
-            args = b",".join([self.c.mogrify("(%(thing_id)s, %(author)s, %(subreddit)s, %(thingcreated_utc)s, %(permalink)s, %(body)s, %(media_author)s, %(media_channel_id)s, %(media_link)s, %(media_platform)s, false, true)", x) for x in kwargs_list])
+            execString2 = b"INSERT INTO media_info (thingid, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2 + b" ON CONFLICT DO NOTHING"
 
-            execString = b"INSERT INTO thesentinel_view (thingid, author, subreddit, thingcreated_utc, permalink, body, media_author, media_channel_id, media_link, media_platform, removed, processed) VALUES " + args 
->>>>>>> origin/master
+            execString3 = "INSERT INTO sentinel_actions (thing_id, removed, action_utc) VALUES " + args3 + b" ON CONFLICT DO NOTHING"
+
             #self.logger.warning("execString: {}".format(execString))
             self.c.execute(execString)
             self.c.execute(execString2)
+            self.c.execute(execString3)
             self.logger.debug("Added {} items to the reddit_thing database, and {} items to the media_info database.".format(args1len, args2len))
-            
+
+    def markActioned(self, thingid):
+        self.c.execute("UPDATE sentinel_actions SET removed=true, action_utc=now() where thing_id=%s and removed=false", (thingid,))
+
+
+
     """
     def next_value(self):
         self.c.execute("SELECT id FROM thing ORDER BY id DESC LIMIT 1")
