@@ -65,6 +65,7 @@ class SentinelInstance():
                         seen.append(item['media_author'])
 
                 thing.subreddit.mod.remove(thing) # https://www.reddit.com/r/redditdev/comments/5h2r1c/-/daxk71u/
+                self.masterClass.markActioned(thing)
                 processed.append(thing.fullname)
         if processed:
             self.logger.info('{} | Removed items: {}'.format(self.me, processed))

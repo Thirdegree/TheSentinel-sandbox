@@ -231,6 +231,9 @@ class TheSentinel(object):
             self.logger.debug(u"Prepared item {}".format(thing.fullname))
         self.database.markProcessed(toDo)
 
+    def markActioned(self, thing):
+        self.database.markActioned(thing.fullname)
+
     def markUsers(self, things): #[(contentCreator, things)]
         toDo = []
         users = filter(lambda x: str(x[1].subreddit).lower() in things)
