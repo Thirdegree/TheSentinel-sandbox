@@ -290,14 +290,17 @@ class TheSentinel(object):
                 if temp:
                     data+=temp
             if temp:
-                self.logger.info(u"Processed url - {}; Media Author(s) - {}".format(url, [i['media_author'] for i in temp]))
+                self.logger.debug(u"Processed url - {}; Media Author(s) - {}".format(url, [i['media_author'] for i in temp]))
         if data:
             return data
         else:
             raise KeyError(u"No match found - {}".format(urls))
     #REDDIT SPECIFIC HERE
     def addBlacklist(self, thing, subreddit, urls=[], isGlobal=False, values_dict=None):
-        data = self.getInfo(thing, urls)
+        try:
+            data = self.getInfo(thing, urls)
+        except KeyError:
+            return None
         for i in data:
             i['thingid'] = thing.fullname
             i['author'] = str(thing.author) if thing else values_dict['modname']

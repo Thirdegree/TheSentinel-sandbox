@@ -27,11 +27,6 @@ GAPIpulls = {
 }
 
 TwitterAPIPulls = {
-    'tweet': (lambda x: [{
-            'media_author': i.user.screen_name,
-            'media_channel_id': str(i.user.id),
-            'media_platform': "Twitter"
-        } for i in x]),
     'user': (lambda x: [{
             'media_author': x.screen_name,
             'media_channel_id': str(x.id),
