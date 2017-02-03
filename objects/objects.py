@@ -222,9 +222,9 @@ class GAPIProcess(APIProcess):
         }
         regexs = {
             'channel': r'''(?i)channel\/(.*?)(?:\/|\?|$)''',
-            'playlist': r'list=((?!videoseries).*?)(?:\/|\?|\&|$)',
+            'playlist': r'list=((?!videoseries).*?)(?:#|\/|\?|\&|$)',
             'username': r'user\/(.*)(?:\?|$|\/)',
-            'video': r'(?:(?:watch\?.*?v=(.*?)(?:#.*)?)|youtu\.be\/(.*?)(?:\?.*)?)(?:\&|\/|$)'
+            'video': r'(?:(?:watch\?.*?v=(.*?)(?:#.*)?)|youtu\.be\/(.*?)(?:\?.*)?)(?:#|\&|\/|$)'
         }
 
         Config = configparser.ConfigParser()
