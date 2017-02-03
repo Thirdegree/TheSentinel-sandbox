@@ -14,20 +14,31 @@ defaultdbnam = 'Zion'
 
 
 class Database(object):
-    def __init__(self, dbname=defaultdbnam, username=defaultun, password=defaultpass):
+    def __init__(self, username=defaultun, password=defaultpass):
         # Initialize the logger
         self.logger = getSentinelLogger()
-
-        self.conn = psycopg2.connect("host='localhost' dbname='{}' user='{}' password='{}'".format(dbname, username, password))
-        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        self.c = self.conn.cursor()
-        self.c.execute("SET CLIENT_ENCODING TO 'UTF8';")
-        self.logger.info('Initialized Database connection to {}'.format(dbname))
+        self.username = username
+        self.password = password
+        
         super(Database, self).__init__()
+
+    def get_conn(self, dbname = defaultdbnam):
+        conn = psycopg2.connect("host='localhost' dbname='{}' user='{}' password='{}'".format(dbname, self.username, self.password))
+        conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        self.logger.info('Initialized Database connection to {}'.format(dbname))
+
+        return conn
+
+
 
 class Blacklist(Database):
     def __init__(self):
         super(Blacklist, self).__init__()
+        blacklist_conn = self.get_conn()
+        self.blacklist_cursor = blacklist_conn.cursor()
+        self.blacklist_cursor.execute("SET CLIENT_ENCODING TO 'UTF8';")
+
+
 
     def isBlacklisted(self, subreddit, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
         if (not media_author) and (not media_channel_id):
@@ -51,10 +62,10 @@ class Blacklist(Database):
         if media_channel_id:
             subquery = "SELECT id FROM subreddit WHERE subreddit_name in ('YT_Killer', 'TheSentinelBot', {})".format(subreddit)
             query = "SELECT 1 FROM sentinel_blacklist WHERE subreddit_id in ({}) AND media_channel_id=%(media_channel_id)s".format(subquery)
-            self.c.execute(query, media_channel_id=media_channel_id)            
+            self.blacklist_cursor.execute(query, media_channel_id=media_channel_id)            
 
             try:
-                fetched = self.c.fetchone()
+                fetched = self.blacklist_cursor.fetchone()
             except psycopg2.ProgrammingError:
                 return False            
             if fetched:
@@ -76,7 +87,7 @@ class Blacklist(Database):
             subreddit_id = "SELECT id FROM subreddit WHERE subreddit_name=%s"%subreddit
             media_platform_id = "SELECT id FROM media_platform WHERE platform_name=%s"%kwargs['media_platform']
             execString1 = "INSERT INTO sentinel_blacklist (subreddit_id, media_channel_id, media_author, media_platform_id, blacklist_utc, blacklist_by) VALUES (({}), %(media_channel_id)s, %(media_author)s, ({}), now(), %(author)s)".format(subreddit=subreddit_id, media_platform=media_platform_id)
-            self.c.execute(execString1, kwargs)
+            self.blacklist_cursor.execute(execString1, kwargs)
 
             self.logger.info(u'Added to database. ThingID: {thingid} | MediaChanID: {media_channel_id} | MediaAuth: {media_author}'.format(**kwargs))
             return True
@@ -98,7 +109,7 @@ class Blacklist(Database):
 
         execString1 = "INSERT INTO sentinel_blacklist_history SELECT *, now() as unblacklist_utc, %(author)s as unblacklist_by FROM sentinel_blacklist WHERE subreddit_id=({subreddit_id}) AND media_channel_id=%(media_channel_id)s;"
         execString2 = "DELETE FROM sentinel_blacklist WHERE subreddit_id=({subreddit_id}) AND media_channel_id=%(media_channel_id)s;"
-        self.c.execute((execString1+execString2).format(subreddit_id=subreddit_id), kwargs)
+        self.blacklist_cursor.execute((execString1+execString2).format(subreddit_id=subreddit_id), kwargs)
 
         self.logger.info(u'Removed from Blacklist. MediaAuth: {} | ChanAuth: {}'.format(media_author, media_channel_id))
         return True
@@ -106,10 +117,10 @@ class Blacklist(Database):
     def isProcessed(self, subreddits=None):
 
         statement = "SELECT thingid FROM sentinel_actions"
-        self.c.execute(statement)
-        fetched = self.c.fetchall()
+        self.blacklist_cursor.execute(statement)
+        fetched = self.blacklist_cursor.fetchall()
 
-        self.logger.debug("Fetched {} items".format(len(fetched), subreddits))
+        self.logger.debug("Fetched {} items".format(len(fetched)))
         return [i[0] for i in fetched] # list of tuples -> list of thingids
 
     def markProcessed(self, kwargs_list):
@@ -121,10 +132,10 @@ class Blacklist(Database):
             for item in kwargs_list:
 
                 statement = "(%(thing_id)s, false, now())"
-                args3.append(self.c.mogrify(statement, item))
+                args3.append(self.blacklist_cursor.mogrify(statement, item))
                 
                 statement = "(%(thing_id)s, (SELECT id FROM subreddit where subreddit_name=%(subreddit)s), %(author)s, %(thingcreated_utc)s, %(thingedited_utc)s, %(parent_thing_id)s, %(permalink)s, %(body)s, %(title)s, %(url)s, %(flair_class)s, %(flair_text)s)"
-                args.append(self.c.mogrify(statement, item))
+                args.append(self.blacklist_cursor.mogrify(statement, item))
 
                 if not item['media_link']:
                     continue
@@ -145,7 +156,7 @@ class Blacklist(Database):
                             media_info['links'][i],
                             item['thingcreated_utc'],)
 
-                    statement = self.c.mogrify(query, call)
+                    statement = self.blacklist_cursor.mogrify(query, call)
                     args2.append(statement)
 
             args1len = len(args)
@@ -162,13 +173,13 @@ class Blacklist(Database):
             execString3 = "INSERT INTO sentinel_actions (thing_id, removed, action_utc) VALUES " + args3 + b" ON CONFLICT DO NOTHING"
 
             #self.logger.warning("execString: {}".format(execString))
-            self.c.execute(execString)
-            self.c.execute(execString2)
-            self.c.execute(execString3)
+            self.blacklist_cursor.execute(execString)
+            self.blacklist_cursor.execute(execString2)
+            self.blacklist_cursor.execute(execString3)
             self.logger.debug("Added {} items to the reddit_thing database, and {} items to the media_info database.".format(args1len, args2len))
 
     def markActioned(self, thingid):
-        self.c.execute("UPDATE sentinel_actions SET removed=true, action_utc=now() where thing_id=%s and removed=false", (thingid,))
+        self.blacklist_cursor.execute("UPDATE sentinel_actions SET removed=true, action_utc=now() where thing_id=%s and removed=false", (thingid,))
 
 
 
@@ -184,27 +195,30 @@ class Blacklist(Database):
 class SlackHooks(Database):
     def __init__(self):
         super(SlackHooks, self).__init__()
+        slackhooks_conn = self.get_conn()
+        self.slackhooks_cursor = slackhooks_conn.cursor()
+        self.slackhooks_cursor.execute("SET CLIENT_ENCODING TO 'UTF8';")
 
     def getHooks(self, slackTeam=None, subreddit=None):
         if (not slackTeam) and (not subreddit):
-            self.c.execute("SELECT srname, webhook_url, slack_channel FROM tsb_slackhooks")
+            self.slackhooks_cursor.execute("SELECT srname, webhook_url, slack_channel FROM tsb_slackhooks")
             self.logger.debug(u'Fetched all slackHooks')
         else:
-            self.c.execute("SELECT srname, webhook_url, slack_channel FROM tsb_slackhooks WHERE slack_team=%s OR srname=%s", (slackTeam, subreddit))
+            self.slackhooks_cursor.execute("SELECT srname, webhook_url, slack_channel FROM tsb_slackhooks WHERE slack_team=%s OR srname=%s", (slackTeam, subreddit))
             self.logger.debug(u'Fetched slackHook for /r/{} | SlackTeam: {}'.format(subreddit, slackTeam))
-        hooks = self.c.fetchall()
+        hooks = self.slackhooks_cursor.fetchall()
         return hooks
 
     def addHook(self, subreddit, channel, hookURL, slackTeam):
-        self.c.execute("INSERT INTO tsb_slackhooks (srname, webhook_url, slack_channel, slack_team) VALUES (%s, %s, %s, %s)", (subreddit, hookURL, channel, slackTeam))
+        self.slackhooks_cursor.execute("INSERT INTO tsb_slackhooks (srname, webhook_url, slack_channel, slack_team) VALUES (%s, %s, %s, %s)", (subreddit, hookURL, channel, slackTeam))
         self.logger.debug(u'Hook added for /r/{} | SlackTeam: {}'.format(subreddit, slackTeam))
 
     def removeHook(self, slackTeam=None, subreddit=None):
         if subreddit and slackTeam is None:
-            self.c.execute("DELETE FROM tsb_slackhooks WHERE srname=%s", (subreddit,))
+            self.slackhooks_cursor.execute("DELETE FROM tsb_slackhooks WHERE srname=%s", (subreddit,))
             self.logger.debug(u'Removed hook for /r/{}'.format(subreddit))
         elif slackTeam and subreddit is None:
-            self.c.execute("DELETE FROM tsb_slackhooks WHERE slack_team=%s", (slackTeam,))
+            self.slackhooks_cursor.execute("DELETE FROM tsb_slackhooks WHERE slack_team=%s", (slackTeam,))
             self.logger.debug(u'Removed hook for SlackTeam: {}'.format(slackTeam))
         else:
             self.logger.warning(u'Please provide either a Subreddit or a Slack Team, not both')
@@ -212,18 +226,21 @@ class SlackHooks(Database):
 
 class NSA(Database):
     def __init__(self):
-        super(NSA, self).__init__(dbname='TheTraveler')
+        super(NSA, self).__init__()
+        self.nsa_conn = self.get_conn(dbname='TheTraveler')
+        self.nsa_cursor = self.nsa_conn.cursor()
+        self.nsa_cursor.execute("SET CLIENT_ENCODING TO 'UTF8';")
 
     def addUsers(self, kwargs_list):
         if kwargs_list:
             self.logger.debug("Adding {} users".format(len(kwargs_list)))
-            args = ",".join([self.c.mogrify("(%(author_id)s, %(author)s, %(permalink)s, EXTRACT(EPOCH from now()), %(thingcreated_utc)s, %(content_creator)s)", x) for x in kwargs_list])
+            args = ",".join([self.nsa_cursor.mogrify("(%(author_id)s, %(author)s, %(permalink)s, EXTRACT(EPOCH from now()), %(thingcreated_utc)s, %(content_creator)s)", x) for x in kwargs_list])
             execString = "INSERT INTO users (authorid, author, permalink, current_utc, authorcreated_utc, iscontentcreator) VALUES " +  args + " ON CONFLICT DO NOTHING"
-            self.c.execute(execString)
+            self.nsa_cursor.execute(execString)
             self.logger.debug("Added {} users to the database.".format(len(kwargs_list)))
 
     def knownUsers(self):
-        newcur = self.conn.cursor()
+        newcur = self.nsa_conn.cursor()
         execString = "SELECT authorid FROM users"
         newcur.execute(execString)
         fetched = newcur.fetchall()
@@ -233,35 +250,44 @@ class NSA(Database):
 
 class Utility(Database):
     def __init__(self, dbname='application'):
-        super(Utility, self).__init__(dbname=dbname)
+        super(Utility, self).__init__()
+        self.utility_conn = self.get_conn(dbname=dbname)
+        self.utility_curson = self.utility_conn.cursor()
+        self.utility_curson.execute("SET CLIENT_ENCODING TO 'UTF8';")
 
     def add_subreddit(self, subreddit, botname, subscribers, category='tsb'):
         execString1 = "INSERT INTO sr_clients (subreddit, redditbot, category, sr_name, subscribers) VALUES (LOWER(%s), %s, %s, %s, %s)"
         updateString = "UPDATE sr_clients SET subscribers=%s where subreddit=LOWER(%s)"
-        self.c.execute("SELECT * FROM sr_clients WHERE subreddit=LOWER(%s)", (subreddit,))
-        fetched = self.c.fetchone()
+        self.utility_curson.execute("SELECT * FROM sr_clients WHERE subreddit=LOWER(%s)", (subreddit,))
+        fetched = self.utility_curson.fetchone()
         if fetched:
-            self.c.execute(updateString, (subscribers, subreddit))
+            self.utility_curson.execute(updateString, (subscribers, subreddit))
         else:
-            self.c.execute(execString1, (subreddit, botname, category, subreddit, subscribers))
+            self.utility_curson.execute(execString1, (subreddit, botname, category, subreddit, subscribers))
 
     def remove_subreddit(self, subreddit):
         execString1 = "DELETE FROM sr_client WHERE subreddit=LOWER(%s)"
-        self.c.execute(execString1, (subreddit,))
+        self.utility_curson.execute(execString1, (subreddit,))
 
 class ModloggerDB(Database):
+    def __init__(self):
+        super(ModloggerDB, self).__init__()
+        modlogger_conn = self.get_conn()
+        self.modlogger_cursor = modlogger_conn.cursor()
+        self.modlogger_cursor.execute("SET CLIENT_ENCODING TO 'UTF8';")
+
     def get_subs_enabled(self):
         execString1 = "SELECT subreddit_name FROM subreddit WHERE modlog_enabled=true"
-        self.c.execute(execString1)
-        fetched = self.c.fetchall()
+        self.modlogger_cursor.execute(execString1)
+        fetched = self.modlogger_cursor.fetchall()
         if fetched:
             return [i[0] for i in fetched]
         return []
 
     def get_last_seen(self, limit=1000):
         execString1 = "SELECT modactionid from modlog limit " + str(limit)
-        self.c.execute(execString1)
-        fetched = self.c.fetchall()
+        self.modlogger_cursor.execute(execString1)
+        fetched = self.modlogger_cursor.fetchall()
         if fetched:
             self.logger.debug("Found %s items"%len(fetched))
             return [i[0] for i in fetched]
@@ -271,25 +297,29 @@ class ModloggerDB(Database):
     def log_items(self, kwargs_list):
         
         if kwargs_list:
-            args = b",".join([self.c.mogrify("(%(thing_id)s, %(mod_name)s, %(action)s, %(action_reason)s, %(thingcreated_utc)s, %(modaction_id)s)", x) for x in kwargs_list])
+            args = b",".join([self.modlogger_cursor.mogrify("(%(thing_id)s, %(mod_name)s, %(action)s, %(action_reason)s, %(thingcreated_utc)s, %(modaction_id)s)", x) for x in kwargs_list])
 
             execString1 = b'INSERT INTO modlog (thing_id, mod, action, actionreason, action_utc, modactionid) VALUES ' + args
-            self.c.execute(execString1)
+            self.modlogger_cursor.execute(execString1)
             self.logger.info("Added {} items to modLogger database.".format(len(kwargs_list)))
 
 
     def is_logged(self, modActionID):
-        self.c.execute('SELECT * FROM modlog WHERE modactionid=%s', (modActionID,))
-        return bool(self.c.fetchone())
+        self.modlogger_cursor.execute('SELECT * FROM modlog WHERE modactionid=%s', (modActionID,))
+        return bool(self.modlogger_cursor.fetchone())
 
 class oAuthDatabase(Database):
     def __init__(self):
-        super(oAuthDatabase, self).__init__(dbname='TheTraveler')
+        super(oAuthDatabase, self).__init__()
+        oAuth_conn = self.get_conn(dbname='TheTraveler')
+        self.oAuth_cursor = oAuth_conn.cursor()
+        self.oAuth_cursor.execute("SET CLIENT_ENCODING TO 'UTF8';")
+
 
     def get_accounts(self, id):
-        self.c.execute("SELECT app_id, app_secret, username, password FROM oauth_data WHERE agent_of=%s", (id,))
+        self.oAuth_cursor.execute("SELECT app_id, app_secret, username, password FROM oauth_data WHERE agent_of=%s", (id,))
         self.logger.debug(u'Retreived oAuth Credentials for Username: {}'.format(id))
-        return self.c.fetchall()
+        return self.oAuth_cursor.fetchall()
 
 class TheTraveler(NSA):
     def __init__(self):
