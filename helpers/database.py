@@ -249,9 +249,9 @@ class NSA(Database):
         return [i[0] for i in fetched] # list of tuples -> list of thingids
 
 class Utility(Database):
-    def __init__(self, dbname='application'):
+    def __init__(self):
         super(Utility, self).__init__()
-        self.utility_conn = self.get_conn(dbname=dbname)
+        self.utility_conn = self.get_conn()
         self.utility_cursor = self.utility_conn.cursor()
         self.utility_cursor.execute("SET CLIENT_ENCODING TO 'UTF8';")
 
