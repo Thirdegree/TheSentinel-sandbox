@@ -60,9 +60,9 @@ class Blacklist(Database):
                 return True
         """
         if media_channel_id:
-            subquery = "SELECT id FROM subreddit WHERE subreddit_name in ('YT_Killer', 'TheSentinelBot', {})".format(subreddit)
+            subquery = "SELECT id FROM subreddit WHERE subreddit_name in ('YT_Killer', 'TheSentinelBot', \'{}\')".format(subreddit)
             query = "SELECT 1 FROM sentinel_blacklist WHERE subreddit_id in ({}) AND media_channel_id=%(media_channel_id)s".format(subquery)
-            self.blacklist_cursor.execute(query, media_channel_id=media_channel_id)            
+            self.blacklist_cursor.execute(query, {'media_channel_id':media_channel_id})            
 
             try:
                 fetched = self.blacklist_cursor.fetchone()
@@ -116,7 +116,7 @@ class Blacklist(Database):
 
     def isProcessed(self, subreddits=None):
 
-        statement = "SELECT thingid FROM sentinel_actions"
+        statement = b"SELECT thing_id FROM sentinel_actions"
         self.blacklist_cursor.execute(statement)
         fetched = self.blacklist_cursor.fetchall()
 
@@ -148,7 +148,7 @@ class Blacklist(Database):
 
                 }
                 for i in range(len(media_info['links'])):
-                    query = "(%s, %s, %s, (SELECT id FROM media_platform WHERE platform_name=%s), %s, %s"
+                    query = "(%s, %s, %s, (SELECT id FROM media_platform WHERE platform_name=%s), %s, %s)"
                     call = (item['thing_id'], 
                             media_info['authors'][i], 
                             media_info['channel_ids'][i], 
@@ -168,9 +168,9 @@ class Blacklist(Database):
 
             execString = b"INSERT INTO reddit_thing (thing_id, subreddit_id, author, created_utc, edited_utc, parent_thing_id, permalink, thing_data, thing_title, link_url, flair_class, flair_text) VALUES " + args + b" ON CONFLICT DO NOTHING"
 
-            execString2 = b"INSERT INTO media_info (thingid, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2 + b" ON CONFLICT DO NOTHING"
+            execString2 = b"INSERT INTO media_info (thing_id, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2 + b" ON CONFLICT DO NOTHING"
 
-            execString3 = "INSERT INTO sentinel_actions (thing_id, removed, action_utc) VALUES " + args3 + b" ON CONFLICT DO NOTHING"
+            execString3 = b"INSERT INTO sentinel_actions (thing_id, removed, action_utc) VALUES " + args3 + b" ON CONFLICT DO NOTHING"
 
             #self.logger.warning("execString: {}".format(execString))
             self.blacklist_cursor.execute(execString)
