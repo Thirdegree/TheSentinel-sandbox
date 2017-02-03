@@ -1,5 +1,4 @@
 from ..helpers import getSentinelLogger, ModloggerDB
-from datetime import datetime
 
 
 class ModLogger(object):
@@ -41,7 +40,7 @@ class ModLogger(object):
                     "action": item.action,
                     "action_reason": item.details,
                     "permalink": item.target_permalink,
-                    "thingcreated_utc": datetime.fromtimestamp(item.created_utc),
+                    "thingcreated_utc": item.created_utc,
                     "subreddit": str(item.subreddit),
                     "modaction_id": item.id,
                     "title": item.target_title
