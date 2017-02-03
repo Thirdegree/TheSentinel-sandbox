@@ -57,7 +57,7 @@ class SentinelInstance():
             thing = self.removalQueue.get()
             things = self.r.info([thing.fullname])
             for thing in things:
-                self.lock.aquire()
+                self.lock.acquire()
                 message = self.masterClass.getInfo(thing)
                 self.lock.release()
 
@@ -72,16 +72,16 @@ class SentinelInstance():
                     item['subreddit'] = str(thing.subreddit)
                     item['permalink'] = perma
                     if item['media_author'] not in seen:
-                        self.lock.aquire()
+                        self.lock.acquire()
                         blacklisted = self.masterClass.isBlacklisted(item['subreddit'], item['media_link'])
                         self.lock.release() 
-                        if blacklisted
+                        if blacklisted:
                             self.notifier.send_message(str(thing.subreddit), item)
                             self.notifier.send_message('yt_killer', item)
                             seen.append(item['media_author'])
 
                 thing.subreddit.mod.remove(thing) # https://www.reddit.com/r/redditdev/comments/5h2r1c/-/daxk71u/
-                self.lock.aquire()
+                self.lock.acquire()
                 self.masterClass.markActioned(thing)
                 self.lock.release()
                 processed.append(thing.fullname)
@@ -118,7 +118,7 @@ class SentinelInstance():
 
             if "You have been removed as a moderator from " in message.body:
                 self.logger.info("{} | Removed from subreddit /r/{}".format(self.me, str(message.subreddit)))
-                self.lock.aquire()
+                self.lock.acquire()
                 self.masterClass.remove_subreddit(str(message.subreddit))
                 self.subsModded = [i for i in self.r.user.moderator_subreddits(limit=None)]
                 self.masterClass.writeSubs()
@@ -219,7 +219,7 @@ class SentinelInstance():
             elif thing.author in mods:
                 self.logger.info(u'{} | Add To Blacklist request from: {}'.format(self.me, thing.author))
                 try:
-                    self.lock.aquire()
+                    self.lock.acquire()
                     blacklist_successful = self.masterClass.addBlacklist(thing, subreddit)
                     self.lock.release()
                     if blacklist_successful:
@@ -248,7 +248,7 @@ class SentinelInstance():
             elif thing.author in mods:
                 self.logger.info(u'{} | Remove From Blacklist request from: {}'.format(self.me, thing.author))
                 try:
-                    self.lock.aquire()
+                    self.lock.acquire()
                     self.masterClass.removeBlacklist(thing, subreddit)
                     self.lock.release()
                     thing.reply("Channel removed from the blacklist")
@@ -264,7 +264,7 @@ class SentinelInstance():
 
     def acceptModInvite(self, message):
         try:
-            self.lock.aquire()
+            self.lock.acquire()
             bot = self.masterClass.getBot(message.subreddit)
             self.lock.release()
             if bot:
@@ -281,7 +281,7 @@ class SentinelInstance():
                 self.logger.info(u'{} | Accepted mod invite for /r/{}'.format(self.me, message.subreddit))
                 self.logger.info(u'{} | Now mods {} users'.format(self.me, self.subCount))
                 
-                self.lock.aquire()
+                self.lock.acquire()
                 self.masterClass.add_subreddit(str(message.subreddit), str(self.me), self.r.subreddit(message.subreddit).subscribers)
                 self.masterClass.writeSubs()
                 self.lock.release()
@@ -302,7 +302,7 @@ class SentinelInstance():
             message.mark_read()
 
     def getCorrectBot(self, subreddit):
-        self.lock.aquire()
+        self.lock.acquire()
         return self.masterClass.getBot(subreddit)
         self.lock.release()
 
@@ -311,7 +311,7 @@ class SentinelInstance():
             #self.logger.debug('{} | Cycling..'.format(self.me.name))
             try:
                 time.sleep(10)
-                self.lock.aquire()
+                self.lock.acquire()
                 self.done = set(self.masterClass.isProcessed(self.subsModded))
                 self.lock.release()
                 #self.modMulti = self.r.subreddit('mod')
