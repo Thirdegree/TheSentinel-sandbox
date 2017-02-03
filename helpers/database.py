@@ -34,8 +34,8 @@ class Database(object):
 class Blacklist(Database):
     def __init__(self):
         super(Blacklist, self).__init__()
-        blacklist_conn = self.get_conn()
-        self.blacklist_cursor = blacklist_conn.cursor()
+        self.blacklist_conn = self.get_conn()
+        self.blacklist_cursor = self.blacklist_conn.cursor()
         self.blacklist_cursor.execute("SET CLIENT_ENCODING TO 'UTF8';")
 
 
@@ -86,7 +86,7 @@ class Blacklist(Database):
         try:
             subreddit_id = "SELECT id FROM subreddit WHERE subreddit_name=%s"%subreddit
             media_platform_id = "SELECT id FROM media_platform WHERE platform_name=%s"%kwargs['media_platform']
-            execString1 = "INSERT INTO sentinel_blacklist (subreddit_id, media_channel_id, media_author, media_platform_id, blacklist_utc, blacklist_by) VALUES (({}), %(media_channel_id)s, %(media_author)s, ({}), now(), %(author)s)".format(subreddit=subreddit_id, media_platform=media_platform_id)
+            execString1 = "INSERT INTO sentinel_blacklist (subreddit_id, media_channel_id, media_author, media_platform_id, blacklist_utc, blacklist_by) VALUES (({subreddit}), %(media_channel_id)s, %(media_author)s, ({media_platform}), now(), %(author)s)".format(subreddit=subreddit_id, media_platform=media_platform_id)
             self.blacklist_cursor.execute(execString1, kwargs)
 
             self.logger.info(u'Added to database. ThingID: {thingid} | MediaChanID: {media_channel_id} | MediaAuth: {media_author}'.format(**kwargs))
@@ -115,10 +115,11 @@ class Blacklist(Database):
         return True
 
     def isProcessed(self, subreddits=None):
+        newcur = self.blacklist_conn.cursor()
 
         statement = b"SELECT thing_id FROM sentinel_actions"
-        self.blacklist_cursor.execute(statement)
-        fetched = self.blacklist_cursor.fetchall()
+        newcur.execute(statement)
+        fetched = newcur.fetchall()
 
         self.logger.debug("Fetched {} items".format(len(fetched)))
         return [i[0] for i in fetched] # list of tuples -> list of thingids
@@ -165,17 +166,21 @@ class Blacklist(Database):
             args = b",".join(args)
             args2 = b",".join(args2)
             args3 = b",".join(args3)
+            if args:
+                execString = b"INSERT INTO reddit_thing (thing_id, subreddit_id, author, created_utc, edited_utc, parent_thing_id, permalink, thing_data, thing_title, link_url, flair_class, flair_text) VALUES " + args + b" ON CONFLICT DO NOTHING"
+                self.blacklist_cursor.execute(execString)
 
-            execString = b"INSERT INTO reddit_thing (thing_id, subreddit_id, author, created_utc, edited_utc, parent_thing_id, permalink, thing_data, thing_title, link_url, flair_class, flair_text) VALUES " + args + b" ON CONFLICT DO NOTHING"
+            if args2:
+                execString2 = b"INSERT INTO media_info (thing_id, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2 + b" ON CONFLICT DO NOTHING"
+                self.blacklist_cursor.execute(execString2)
 
-            execString2 = b"INSERT INTO media_info (thing_id, media_author, media_channel_id, media_platform_id, media_url, last_seen_utc) VALUES " + args2 + b" ON CONFLICT DO NOTHING"
-
-            execString3 = b"INSERT INTO sentinel_actions (thing_id, removed, action_utc) VALUES " + args3 + b" ON CONFLICT DO NOTHING"
-
+            if args3:
+                execString3 = b"INSERT INTO sentinel_actions (thing_id, removed, action_utc) VALUES " + args3 + b" ON CONFLICT DO NOTHING"
+                self.blacklist_cursor.execute(execString3)
             #self.logger.warning("execString: {}".format(execString))
-            self.blacklist_cursor.execute(execString)
-            self.blacklist_cursor.execute(execString2)
-            self.blacklist_cursor.execute(execString3)
+            
+            
+            
             self.logger.debug("Added {} items to the reddit_thing database, and {} items to the media_info database.".format(args1len, args2len))
 
     def markActioned(self, thingid):
@@ -257,7 +262,7 @@ class Utility(Database):
 
     def add_subreddit(self, subreddit, botname, subscribers):
         execString1 = "INSERT INTO subreddit (subreddit_name, sentinel_enabled, redditbot_name, subreddit_subscribers) VALUES (%s, %s, %s, %s)"
-        updateString = "UPDATE subreddit SET sentinel_enabled=TRUE AND redditbot_name=%s AND subreddit_subscribers=%s WHERE subreddit_name=%s"
+        updateString = "UPDATE subreddit SET sentinel_enabled=TRUE, redditbot_name=%s, subreddit_subscribers=%s WHERE subreddit_name=%s"
         self.utility_cursor.execute("SELECT * FROM subreddit WHERE subreddit_name=%s", (subreddit,))
         fetched = self.utility_cursor.fetchone()
         if fetched:
@@ -267,7 +272,7 @@ class Utility(Database):
 
 
     def remove_subreddit(self, subreddit):
-        execString1 = "UPDATE subreddit SET sentinel_enabled=FALSE AND dirtbag_enabled=FALSE WHERE subreddit_name=%s"
+        execString1 = "UPDATE subreddit SET sentinel_enabled=FALSE, dirtbag_enabled=FALSE WHERE subreddit_name=%s"
         self.utility_cursor.execute(execString1, (subreddit,))
 
 
