@@ -52,6 +52,7 @@ class TheSentinel(object):
         self.sentinels = []
         auth = oAuth("tsb")
         self.logger.info(u"/*********Starting agents*********\\")
+        self.lock = threading.Semaphore()
         for account in auth.accounts:
             queue = Queue()
             instance = SentinelInstance(account, queue, self)
