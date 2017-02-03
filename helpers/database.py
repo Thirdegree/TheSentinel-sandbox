@@ -252,22 +252,24 @@ class Utility(Database):
     def __init__(self, dbname='application'):
         super(Utility, self).__init__()
         self.utility_conn = self.get_conn(dbname=dbname)
-        self.utility_curson = self.utility_conn.cursor()
-        self.utility_curson.execute("SET CLIENT_ENCODING TO 'UTF8';")
+        self.utility_cursor = self.utility_conn.cursor()
+        self.utility_cursor.execute("SET CLIENT_ENCODING TO 'UTF8';")
 
-    def add_subreddit(self, subreddit, botname, subscribers, category='tsb'):
-        execString1 = "INSERT INTO sr_clients (subreddit, redditbot, category, sr_name, subscribers) VALUES (LOWER(%s), %s, %s, %s, %s)"
-        updateString = "UPDATE sr_clients SET subscribers=%s where subreddit=LOWER(%s)"
-        self.utility_curson.execute("SELECT * FROM sr_clients WHERE subreddit=LOWER(%s)", (subreddit,))
-        fetched = self.utility_curson.fetchone()
+    def add_subreddit(self, subreddit, botname, subscribers):
+        execString1 = "INSERT INTO subreddit (subreddit_name, sentinel_enabled, redditbot_name, subreddit_subscribers) VALUES (%s, %s, %s, %s)"
+        updateString = "UPDATE subreddit SET sentinel_enabled=TRUE AND redditbot_name=%s AND subreddit_subscribers=%s WHERE subreddit_name=%s"
+        self.utility_cursor.execute("SELECT * FROM subreddit WHERE subreddit_name=%s", (subreddit,))
+        fetched = self.utility_cursor.fetchone()
         if fetched:
-            self.utility_curson.execute(updateString, (subscribers, subreddit))
+            self.utility_cursor.execute(updateString, (botname, subscribers, subreddit))
         else:
-            self.utility_curson.execute(execString1, (subreddit, botname, category, subreddit, subscribers))
+            self.utility_cursor.execute(execString1, (subreddit, True, botname, subscribers))
+
 
     def remove_subreddit(self, subreddit):
-        execString1 = "DELETE FROM sr_client WHERE subreddit=LOWER(%s)"
-        self.utility_curson.execute(execString1, (subreddit,))
+        execString1 = "UPDATE subreddit SET sentinel_enabled=FALSE AND dirtbag_enabled=FALSE WHERE subreddit_name=%s"
+        self.utility_cursor.execute(execString1, (subreddit,))
+
 
 class ModloggerDB(Database):
     def __init__(self):
