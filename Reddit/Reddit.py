@@ -37,8 +37,6 @@ class SentinelInstance():
 
         self.blacklisted_subs = ['pokemongo']
 
-        self.lock = self.masterClass.lock
-
         #TSB_Count = self.getTSBCrashCount()
         #self.r.redditor('thirdegree').message('Please do the needful', 'and wish /u/Norsefenrir a Happy Birthday. Thank you.\n\n Signed,  \nSkyNet\n\n---\n\nPS: TSB has crashed {} times.'.format(TSB_Count))
 
@@ -57,9 +55,7 @@ class SentinelInstance():
             thing = self.removalQueue.get()
             things = self.r.info([thing.fullname])
             for thing in things:
-                self.lock.acquire()
                 message = self.masterClass.getInfo(thing)
-                self.lock.release()
 
                 if isinstance(thing, praw.models.Submission):
                     perma = thing.shortlink
@@ -71,19 +67,13 @@ class SentinelInstance():
                     item['author'] = str(thing.author)
                     item['subreddit'] = str(thing.subreddit)
                     item['permalink'] = perma
-                    if item['media_author'] not in seen:
-                        self.lock.acquire()
-                        blacklisted = self.masterClass.isBlacklisted(item['subreddit'], item['media_link'])
-                        self.lock.release() 
-                        if blacklisted:
-                            self.notifier.send_message(str(thing.subreddit), item)
-                            self.notifier.send_message('yt_killer', item)
-                            seen.append(item['media_author'])
+                    if item['media_author'] not in seen and self.masterClass.isBlacklisted(item['subreddit'], item['media_link']) :
+                        self.notifier.send_message(str(thing.subreddit), item)
+                        self.notifier.send_message('yt_killer', item)
+                        seen.append(item['media_author'])
 
                 thing.subreddit.mod.remove(thing) # https://www.reddit.com/r/redditdev/comments/5h2r1c/-/daxk71u/
-                self.lock.acquire()
                 self.masterClass.markActioned(thing)
-                self.lock.release()
                 processed.append(thing.fullname)
         if processed:
             self.logger.info('{} | Removed items: {}'.format(self.me, processed))
@@ -118,11 +108,9 @@ class SentinelInstance():
 
             if "You have been removed as a moderator from " in message.body:
                 self.logger.info("{} | Removed from subreddit /r/{}".format(self.me, str(message.subreddit)))
-                self.lock.acquire()
                 self.masterClass.remove_subreddit(str(message.subreddit))
                 self.subsModded = [i for i in self.r.user.moderator_subreddits(limit=None)]
                 self.masterClass.writeSubs()
-                self.lock.release()
                 self.logger.info("{} | Now mods {} users.".format(self.me, self.subCount))
                 continue
 
@@ -219,10 +207,7 @@ class SentinelInstance():
             elif thing.author in mods:
                 self.logger.info(u'{} | Add To Blacklist request from: {}'.format(self.me, thing.author))
                 try:
-                    self.lock.acquire()
-                    blacklist_successful = self.masterClass.addBlacklist(thing, subreddit)
-                    self.lock.release()
-                    if blacklist_successful:
+                    if self.masterClass.addBlacklist(thing, subreddit):
                         thing.reply("Channel added to the blacklist")
                     else:
                         thing.reply("Channel add failed.")
@@ -248,9 +233,7 @@ class SentinelInstance():
             elif thing.author in mods:
                 self.logger.info(u'{} | Remove From Blacklist request from: {}'.format(self.me, thing.author))
                 try:
-                    self.lock.acquire()
                     self.masterClass.removeBlacklist(thing, subreddit)
-                    self.lock.release()
                     thing.reply("Channel removed from the blacklist")
                 except requests.exceptions.HTTPError:
                     pass
@@ -264,10 +247,7 @@ class SentinelInstance():
 
     def acceptModInvite(self, message):
         try:
-            self.lock.acquire()
-            bot = self.masterClass.getBot(message.subreddit)
-            self.lock.release()
-            if bot:
+            if self.masterClass.getBot(message.subreddit):
                 message.reply("You already have an active Sentinel account. We appreciate the enthusiasm, though!\n\nIf you recently removed an old Sentinel account, please wait ~5 minutes to add a new one to allow for processing time.")
                 message.mark_read()
                 self.logger.info(u'Bot already mods /r/{}'.format(message.subreddit))
@@ -281,10 +261,8 @@ class SentinelInstance():
                 self.logger.info(u'{} | Accepted mod invite for /r/{}'.format(self.me, message.subreddit))
                 self.logger.info(u'{} | Now mods {} users'.format(self.me, self.subCount))
                 
-                self.lock.acquire()
                 self.masterClass.add_subreddit(str(message.subreddit), str(self.me), self.r.subreddit(message.subreddit).subscribers)
                 self.masterClass.writeSubs()
-                self.lock.release()
             else:
                 self.logger.info(u'{} | Bot at capacity'.format(self.me))
                 message.reply(CurrentInstanceOverloaded)
@@ -302,18 +280,14 @@ class SentinelInstance():
             message.mark_read()
 
     def getCorrectBot(self, subreddit):
-        self.lock.acquire()
         return self.masterClass.getBot(subreddit)
-        self.lock.release()
 
     def start(self):
         while not self.masterClass.killThreads:
             #self.logger.debug('{} | Cycling..'.format(self.me.name))
             try:
                 time.sleep(10)
-                self.lock.acquire()
                 self.done = set(self.masterClass.isProcessed(self.subsModded))
-                self.lock.release()
                 #self.modMulti = self.r.subreddit('mod')
 
                 self.checkContent()
