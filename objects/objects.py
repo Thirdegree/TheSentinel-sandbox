@@ -8,7 +8,7 @@ import tweepy
 from ..objects import datapulls
 import requests
 
-from ..helpers import Blacklist, SlackHooks, getSentinelLogger, NSA, Utility
+from ..helpers import Zion, getSentinelLogger, TheTraveler, Utility
 from ..exceptions import InvalidAddition
 
 
@@ -364,7 +364,7 @@ class SCAPIProcess(APIProcess):
 
 
 
-class SentinelDatabase(Blacklist, SlackHooks, NSA):
+class SentinelDatabase(Zion, TheTraveler):
     pass
 
 class Memcache(object):

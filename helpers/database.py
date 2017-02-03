@@ -22,9 +22,12 @@ class Database(object):
         self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.c = self.conn.cursor()
         self.c.execute("SET CLIENT_ENCODING TO 'UTF8';")
-        self.logger.debug('Initialized Database connection')
+        self.logger.info('Initialized Database connection to {}'.format(dbname))
+        super(Database, self).__init__()
 
 class Blacklist(Database):
+    def __init__(self):
+        super(Blacklist, self).__init__()
 
     def isBlacklisted(self, subreddit, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
         if (not media_author) and (not media_channel_id):
@@ -102,9 +105,8 @@ class Blacklist(Database):
 
     def isProcessed(self, subreddits=None):
 
-
         statement = "SELECT thingid FROM sentinel_actions"
-        self.c.execString(statement)
+        self.c.execute(statement)
         fetched = self.c.fetchall()
 
         self.logger.debug("Fetched {} items".format(len(fetched), subreddits))
@@ -181,7 +183,7 @@ class Blacklist(Database):
 
 class SlackHooks(Database):
     def __init__(self):
-        super(SlackHooks, self).__init__(dbname='TheTraveler')
+        super(SlackHooks, self).__init__()
 
     def getHooks(self, slackTeam=None, subreddit=None):
         if (not slackTeam) and (not subreddit):
@@ -288,3 +290,12 @@ class oAuthDatabase(Database):
         self.c.execute("SELECT app_id, app_secret, username, password FROM oauth_data WHERE agent_of=%s", (id,))
         self.logger.debug(u'Retreived oAuth Credentials for Username: {}'.format(id))
         return self.c.fetchall()
+
+class TheTraveler(NSA):
+    def __init__(self):
+        super(TheTraveler, self).__init__()
+
+
+class Zion(SlackHooks, Blacklist):
+    def __init__(self):
+        super(Zion, self).__init__()
