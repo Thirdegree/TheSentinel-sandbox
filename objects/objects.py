@@ -395,7 +395,7 @@ class Memcache(object):
             self.logger.error('Unable to access memcache queue')
 
     def add(self, thing, keyString='tsb'):
-        self.memclient.set("{}_{}".format(keyString, thing.fullname), thing)
+        self.memclient.add("{}_{}".format(keyString, thing.fullname), thing)
         self.logger.debug(u'Added {} to memcache queue from {}'.format(thing.fullname, thing.subreddit))
 
     def add_polo(self, botname='thesentinelbot'):
