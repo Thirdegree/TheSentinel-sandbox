@@ -21,7 +21,7 @@ from .oAuths import oAuth
 from .Reddit import SentinelInstance
 
 
-#import DailyMotion
+lock = threading.Lock()
 
 class TheSentinel(object):
     def __init__(self):
@@ -66,9 +66,13 @@ class TheSentinel(object):
         self.utility = Utility()
         self.blacklistSub = 'TheSentinelBot'
 
+        self.logger.info('Created locking service')
+
 
     def get_items(self):
         # returns (thing, [urls])
+        lock.acquire()
+        self.logger.debug('Aquired the lock for Memcache Generator')
         try:
             for item in self.cache.get_new():
                 if item:
@@ -76,6 +80,9 @@ class TheSentinel(object):
                     yield self.get_urls(item)
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
+        finally:
+            lock.release()
+            self.logger.debug('Released the Memcache Generator Lock')
 
     def process_webrequest(self, values_dict):
         values_dict = json.loads(values_dict)
@@ -281,14 +288,17 @@ class TheSentinel(object):
                 if temp:
                     data+=temp
             if temp:
-                self.logger.info(u"Processed url - {}; Media Author(s) - {}".format(url, [i['media_author'] for i in temp]))
+                self.logger.debug(u"Processed url - {}; Media Author(s) - {}".format(url, [i['media_author'] for i in temp]))
         if data:
             return data
         else:
             raise KeyError(u"No match found - {}".format(urls))
     #REDDIT SPECIFIC HERE
     def addBlacklist(self, thing, subreddit, urls=[], isGlobal=False, values_dict=None):
-        data = self.getInfo(thing, urls)
+        try:
+            data = self.getInfo(thing, urls)
+        except KeyError:
+            return None
         for i in data:
             i['thingid'] = thing.fullname if thing else self.database.next_value()
             i['author'] = str(thing.author) if thing else values_dict['modname']

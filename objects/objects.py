@@ -141,28 +141,30 @@ class TwitterAPIProcess(APIProcess):
         self.api = tweepy.API(auth)
 
         Twitter_URLS = {
-            'tweet': lambda x: self.api.statuses_lookup(x),
             'user': lambda x: self.api.get_user(x),
         }
 
         regexs = {
-            'tweet': r"status/(\d*)",
             'user': r"r\.com\/(.*?)(?:\/|\?|\&|$|#)"
         }
 
         super(TwitterAPIProcess, self).__init__(Twitter_URLS, regexs, datapulls.TwitterAPIPulls)
 
     def getInformation(self, url):
-        self.logger.debug(u'Getting Infomration. URL: {}'.format(url))
+        self.logger.debug(u'Getting Information. URL: {}'.format(url))
         try:
             key, data = self._getData(url)
-        except KeyError:
+        except KeyError as e:
             return []
-        obj = self.API_URLS[key](data)
+        try:
+            obj = self.API_URLS[key](data)
+        except tweepy.error.TweepError:
+            return []
         try:
             alldata = self.data_pulls[key](obj) or []
         except TypeError:
             return []
+
         
         return alldata
 
@@ -393,7 +395,7 @@ class Memcache(object):
             self.logger.error('Unable to access memcache queue')
 
     def add(self, thing, keyString='tsb'):
-        self.memclient.set("{}_{}".format(keyString, thing.fullname), thing)
+        self.memclient.add("{}_{}".format(keyString, thing.fullname), thing)
         self.logger.debug(u'Added {} to memcache queue from {}'.format(thing.fullname, thing.subreddit))
 
     def add_polo(self, botname='thesentinelbot'):

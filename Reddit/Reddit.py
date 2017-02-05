@@ -37,6 +37,14 @@ class SentinelInstance():
 
         self.blacklisted_subs = ['pokemongo']
 
+        #TSB_Count = self.getTSBCrashCount()
+        #self.r.redditor('thirdegree').message('Please do the needful', 'and wish /u/Norsefenrir a Happy Birthday. Thank you.\n\n Signed,  \nSkyNet\n\n---\n\nPS: TSB has crashed {} times.'.format(TSB_Count))
+
+    def getTSBCrashCount():
+        with open('C:\_SkyNet\RedditBots\TSB_Crash_Count.txt', 'r') as f:
+            data = f.read()
+        return int(data)
+
     def __str__(self):
         return self.me.name
 
