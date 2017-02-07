@@ -26,6 +26,7 @@ class Blacklist(Database):
         super(Blacklist, self).__init__()
         c = self.conn.cursor()
         c.execute("SET CLIENT_ENCODING TO 'UTF8';")
+        c.commit()
         self.logger.debug('Initialized Blacklist Database connection')
 
 
@@ -96,7 +97,7 @@ class Blacklist(Database):
     def isProcessed(self, subreddits):
         if not subreddits:
             return []
-        newcur = self.conn.cursor('isProcessed')
+        newcur = self.conn.cursor()
         args = b",".join([newcur.mogrify("%s", (x,)) for x in subreddits])
         execString = "SELECT thingid FROM thesentinel_view WHERE processed=true AND subreddit IN (" + args.decode("ascii", errors="ignore") + ")"#" ORDER BY thingcreated_utc DESC LIMIT 2000"        
         
@@ -202,9 +203,10 @@ class Utility(Database):
     def add_subreddit(self, subreddit, botname, subscribers, category='tsb'):
         execString1 = "INSERT INTO sr_clients (subreddit, redditbot, category, sr_name, subscribers) VALUES (LOWER(%s), %s, %s, %s, %s)"
         updateString = "UPDATE sr_clients SET subscribers=%s where subreddit=LOWER(%s)"
-        with self.conn.cursor('add_subreddit') as c:
+        with self.conn.cursor('add_subreddit_find') as c:
             c.execute("SELECT * FROM sr_clients WHERE subreddit=LOWER(%s)", (subreddit,))
             fetched = c.fetchone()
+        with self.conn.cursor('add_subreddit_do')
             if fetched:
                 c.execute(updateString, (subscribers, subreddit))
             else:
