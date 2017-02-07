@@ -100,8 +100,8 @@ class TheSentinel(object):
         
         if self.last_mod_alert:
             sincelast = datetime.now() - self.last_mod_alert
-            if sincelast < timedelta(hours=1)
-            raise TooFrequent(sincelast)
+            if sincelast < timedelta(hours=1):
+	            raise TooFrequent(sincelast)
         sent = True
         for sentinel, _ in self.sentinels:
             sent = sent and sentinel.messageSubreddits(title, body)

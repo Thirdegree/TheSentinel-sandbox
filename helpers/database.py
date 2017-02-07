@@ -206,7 +206,7 @@ class Utility(Database):
         with self.conn.cursor('add_subreddit_find') as c:
             c.execute("SELECT * FROM sr_clients WHERE subreddit=LOWER(%s)", (subreddit,))
             fetched = c.fetchone()
-        with self.conn.cursor('add_subreddit_do')
+        with self.conn.cursor('add_subreddit_do') as c:
             if fetched:
                 c.execute(updateString, (subscribers, subreddit))
             else:
