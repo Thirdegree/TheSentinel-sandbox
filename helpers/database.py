@@ -127,7 +127,8 @@ class Blacklist(Database):
         statement = b"SELECT thing_id FROM sentinel_actions"
         newcur.execute(statement)
         fetched = newcur.fetchall()
-
+        newcur.close()
+        self.blacklist_conn.commit()
         self.logger.debug("Fetched {} items".format(len(fetched)))
         return [i[0] for i in fetched] # list of tuples -> list of thingids
 
