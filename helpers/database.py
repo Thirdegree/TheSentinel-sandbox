@@ -122,7 +122,7 @@ class Blacklist(Database):
         return True
 
     def isProcessed(self, subreddits=None):
-        newcur = self.blacklist_conn.cursor('isProcessed')
+        newcur = self.blacklist_conn.cursor()
 
         statement = b"SELECT thing_id FROM sentinel_actions"
         newcur.execute(statement)
