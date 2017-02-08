@@ -36,7 +36,11 @@ class MediaProcess(object):
         if not self.validateURL(url):
             self.logger.debug('Not valid media URL')
             return False
-        channels = self.APIProcess.getInformation(url)
+        try:
+            channels = self.APIProcess.getInformation(url)
+        except requests.exceptions.HTTPError:
+            self.logger.warning("No information found for url - {}".format(url))
+            return False
         for i in channels:
             if self.db.isBlacklisted(subreddit, **i):
                 self.logger.debug('Channel is Blacklisted. URL: {}'.format(url))
@@ -78,7 +82,7 @@ class APIProcess(object):
         response = requests.get(self.API_URLS[key].format(data, self.api_key), headers=self.headers)
 
         if response.status_code != 200:
-            self.logger.error(u'Get API Data Error. Error Code: {} | Data: {}'.format(response.status_code, self.API_URLS[key].format(data, self.api_key)))
+            self.logger.error(u'Get API Data Error. Error Code: {} | Data: {}'.format(response.status_code, self.API_URLS[key].format(data, "YOUR_KEY")))
             response.raise_for_status()
 
         return key, response.json()

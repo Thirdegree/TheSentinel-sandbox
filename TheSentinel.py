@@ -75,9 +75,12 @@ class TheSentinel(object):
         self.logger.debug('Aquired the lock for Memcache Generator')
         try:
             for item in self.cache.get_new():
-                if item:
+               	self.phone_home()
+               	if item:
                     self.logger.debug(u'Returning from memcache: {}'.format(item.fullname if item else item)) 
                     yield self.get_urls(item)
+            else:
+            	self.phone_home()
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
         finally:
@@ -345,7 +348,6 @@ class TheSentinel(object):
             
             try:
                 #self.logger.debug('Cycling..')
-                self.phone_home()
                 items = self.get_items()
                 for item in items:
                     try:
@@ -354,7 +356,7 @@ class TheSentinel(object):
                         continue
                     if level == 2:
                         self.remove(thing)
-                time.sleep(10)
+                #time.sleep(10) why lol
 
             except KeyboardInterrupt:
                 self.logger.warning(u"Keyboard Interrrupt - exiting")

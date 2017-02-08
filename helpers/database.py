@@ -71,7 +71,7 @@ class Blacklist(Database):
                     except psycopg2.ProgrammingError:
                         return False            
             if fetched:
-                self.logger.info(u'Media Channel Blacklisted. Sub: {} | ChanID: {} | MediaPlatform: {}'.format(subreddit, media_channel_id, media_platform))
+                self.logger.info(u'Media Channel Blacklisted. Sub: {} | Media_Author: {} | MediaPlatform: {}'.format(subreddit, media_author or media_channel_id, media_platform))
                 return True
         self.logger.debug(u'Channel not blacklisted. Sub: {} | ChanID: {} | MediaAuth: {}'.format(subreddit, media_channel_id, media_author))
         return False
