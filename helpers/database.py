@@ -362,7 +362,7 @@ class ModloggerDB(Database):
                     if kwargs_list:
                         args = b",".join([c.mogrify("(%(thing_id)s, %(mod_name)s, %(action)s, %(action_reason)s, %(thingcreated_utc)s, %(modaction_id)s, (SELECT id FROM subreddit WHERE subreddit_name=%(subreddit)s))", x) for x in kwargs_list])
 
-                        execString1 = b'INSERT INTO modlog (thing_id, mod, action, actionreason, action_utc, modactionid, subreddit_id) VALUES ' + args + b" ON CONFLICT (modactionid) DO UPDATE SET subreddit_id=excluded.subreddit_id WHERE modactionid=excluded.modactionid"
+                        execString1 = b'INSERT INTO modlog (thing_id, mod, action, actionreason, action_utc, modactionid, subreddit_id) VALUES ' + args + b" ON CONFLICT (modactionid) DO UPDATE SET subreddit_id=excluded.subreddit_id WHERE modlog.modactionid=excluded.modactionid"
                         c.execute(execString1)
                         self.logger.info("Added {} items to modLogger database.".format(len(kwargs_list)))
         except Exception as e:
