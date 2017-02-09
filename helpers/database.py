@@ -162,16 +162,19 @@ class Blacklist(Database):
 
                         }
                         for i in range(len(media_info['links'])):
-                            query = "(%s, %s, %s, (SELECT id FROM media_platform WHERE platform_name=%s), %s, %s)"
-                            call = (item['thing_id'], 
-                                    media_info['authors'][i], 
-                                    media_info['channel_ids'][i], 
-                                    media_info['platforms'][i], 
-                                    media_info['links'][i],
-                                    item['thingcreated_utc'],)
+                            try:
+                                query = "(%s, %s, %s, (SELECT id FROM media_platform WHERE platform_name=%s), %s, %s)"
+                                call = (item['thing_id'], 
+                                        media_info['authors'][i], 
+                                        media_info['channel_ids'][i], 
+                                        media_info['platforms'][i], 
+                                        media_info['links'][i],
+                                        item['thingcreated_utc'],)
 
-                            statement = c.mogrify(query, call)
-                            args2.append(statement)
+                                statement = c.mogrify(query, call)
+                                args2.append(statement)
+                            except IndexError: #What??
+                                continue
 
             args1len = len(args)
             args2len = len(args2)
