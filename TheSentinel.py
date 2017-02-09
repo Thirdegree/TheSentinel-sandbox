@@ -67,7 +67,6 @@ class TheSentinel(object):
         self.utility = Utility()
         self.blacklistSub = 'TheSentinelBot'
 
-        self.logger.info('Created locking service')
         self.last_mod_alert = None
 
 

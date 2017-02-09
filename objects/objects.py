@@ -149,7 +149,7 @@ class TwitterAPIProcess(APIProcess):
         }
 
         regexs = {
-            'user': r"r\.com\/(.*?)(?:\/|\?|\&|$|#)"
+            'user': r"r\.com\/(.+?)(?:\/|\?|\&|$|#)"
         }
 
         super(TwitterAPIProcess, self).__init__(Twitter_URLS, regexs, datapulls.TwitterAPIPulls)
@@ -198,7 +198,7 @@ class TwitchAPIProcess(APIProcess):
         }
         
         regexs = {
-            'user': r'\.tv\/(.*?)(?:$|\/)',
+            'user': r'\.tv\/(.+?)(?:$|\/)',
         }
 
         Config = configparser.ConfigParser()
@@ -225,10 +225,11 @@ class GAPIProcess(APIProcess):
             'username': 'https://www.googleapis.com/youtube/v3/channels?part=snippet&forUsername={}&fields=items(id%2Csnippet%2Ftitle)&key={}' #GOOD}
         }
         regexs = {
-            'channel': r'''(?i)channel\/(.*?)(?:\/|\?|$)''',
-            'playlist': r'list=((?!videoseries).*?)(?:#|\/|\?|\&|$)',
-            'username': r'user\/(.*)(?:\?|$|\/)',
-            'video': r'(?:(?:watch\?.*?v=(.*?)(?:#.*)?)|youtu\.be\/(.*?)(?:\?.*)?)(?:#|\&|\/|$)'
+            'video': r'(?:(?:watch\?.*?v=(.+?)(?:#.*)?)|youtu\.be\/(.+?)(?:\?.*)?)(?:#|\&|\/|$)',
+            'channel': r'''(?i)channel\/(.+?)(?:\/|\?|$)''',
+            'playlist': r'list=((?!videoseries).+?)(?:#|\/|\?|\&|$)',
+            'username': r'user\/(.+)(?:\?|$|\/)',
+            
         }
 
         Config = configparser.ConfigParser()
@@ -252,8 +253,8 @@ class DMAPIProcess(APIProcess):
         }
 
         regexs = {
-            'playlist': r'playlist\/(.*?)_',
-            'video': r'(?:video\/|dai\.ly\/)(.*?)(?:#|\/|\?|$)',
+            'playlist': r'playlist\/(.+?)_',
+            'video': r'(?:video\/|dai\.ly\/)(.+?)(?:#|\/|\?|$)',
         }
 
         self.logger.debug('Running DailyMotion Datapull')
@@ -264,7 +265,7 @@ class DMAPIProcess(APIProcess):
             return super(DMAPIProcess, self)._getData(url)
         except KeyError:
             try:
-                match = re.search(r'\.com\/(.*?)(?:\/|\?|$)', url)
+                match = re.search(r'\.com\/(.+?)(?:\/|\?|$)', url)
                 self.logger.debug('DM Match Found')
                 return ('username', match.group(1))
             except AttributeError:
@@ -284,8 +285,8 @@ class VMOAPIProcess(APIProcess):
         }
 
         regexs = {
-            'user': r'\/user(.*?)(?:\/|\?|$)',
-            'playlist': r'\/channels\/(.*?)(?:\/|\?|$)'
+            'user': r'\/user(.+?)(?:\/|\?|$)',
+            'playlist': r'\/channels\/(.+?)(?:\/|\?|$)'
         }
 
         self.logger.debug('Running Vimeo Datapull')
@@ -302,7 +303,7 @@ class VMOAPIProcess(APIProcess):
             return super(VMOAPIProcess, self)._getData(url)
         except KeyError:
             try:
-                match = re.search(r'\.com\/([^(?:user)].*?)(?:#|\/|\?|$)', url)
+                match = re.search(r'\.com\/([^(?:user)].+?)(?:#|\/|\?|$)', url)
                 self.logger.debug('Viemo Match Found')
                 return ('video', match.group(1))
             except AttributeError:

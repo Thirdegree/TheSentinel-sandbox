@@ -88,8 +88,8 @@ class Blacklist(Database):
             self.logger.debug(u'Channel already blacklisted: ChanID: {}'.format(kwargs['media_channel_id']))
             return True
         try:
-            subreddit_id = "SELECT id FROM subreddit WHERE subreddit_name=%s"%subreddit
-            media_platform_id = "SELECT id FROM media_platform WHERE platform_name=%s"%kwargs['media_platform']
+            subreddit_id = "SELECT id FROM subreddit WHERE subreddit_name='%s'"%subreddit
+            media_platform_id = "SELECT id FROM media_platform WHERE platform_name='%s'"%kwargs['media_platform']
             execString1 = "INSERT INTO sentinel_blacklist (subreddit_id, media_channel_id, media_author, media_platform_id, blacklist_utc, blacklist_by) VALUES (({subreddit}), %(media_channel_id)s, %(media_author)s, ({media_platform}), now(), %(author)s)".format(subreddit=subreddit_id, media_platform=media_platform_id)
             with self.blacklist_conn as conn:
                 with conn.cursor() as c:
@@ -360,9 +360,9 @@ class ModloggerDB(Database):
             with self.modlogger_conn as conn:
                 with conn.cursor() as c:
                     if kwargs_list:
-                        args = b",".join([c.mogrify("(%(thing_id)s, %(mod_name)s, %(action)s, %(action_reason)s, %(thingcreated_utc)s, %(modaction_id)s, (SELECT id FROM subreddit WHERE subreddit_name=%(subreddit)s))", x) for x in kwargs_list])
+                        args = b",".join([c.mogrify("(%(thing_id)s, %(mod_name)s, %(action)s, %(action_reason)s, %(thingcreated_utc)s, %(modaction_id)s, (SELECT id FROM subreddit WHERE subreddit_name=%(subreddit)s), %(subreddit)s)", x) for x in kwargs_list])
 
-                        execString1 = b'INSERT INTO modlog (thing_id, mod, action, actionreason, action_utc, modactionid, subreddit_id) VALUES ' + args + b" ON CONFLICT (modactionid) DO UPDATE SET subreddit_id=excluded.subreddit_id WHERE modlog.modactionid=excluded.modactionid"
+                        execString1 = b'INSERT INTO modlog (thing_id, mod, action, actionreason, action_utc, modactionid, subreddit_id, subreddit_name) VALUES ' + args + b" ON CONFLICT (modactionid) DO UPDATE SET subreddit_id=excluded.subreddit_id WHERE modlog.modactionid=excluded.modactionid"
                         c.execute(execString1)
                         self.logger.info("Added {} items to modLogger database.".format(len(kwargs_list)))
         except Exception as e:

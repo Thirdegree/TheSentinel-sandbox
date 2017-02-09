@@ -109,17 +109,20 @@ class SentinelInstance():
             return False
 
     def forceModlogHistory(self, body):
-        matchstring = "(?:\/?r\/(\w+)|all)"
+        matchstring = "(?:\/?r\/(\w+)|(all))"
         match = re.findall(matchstring, body, re.I)
         if not match:
             return
-        if match[0] == 'all':
-            modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
+        if match[0][1] == 'all':
+            subs = [str(i).lower() for i in self.subsModded]
+            subs_asked = subs
         else:
-            matches = list(set([i[1] for i in match]) & set([str(i) for i in self.subsModded]))
-            modlogger = ModLogger(self.r, matches)
-        if not modlogger.subs:
+            subs_asked = [i[0].lower() for i in match]
+            subs = list(set(subs_asked) & set([str(i).lower() for i in self.subsModded]))
+        if not subs:
+            self.logger.info("{} | Found no matching subs to force modlog history from {}".format(self.me, subs_asked))
             return
+        modlogger = ModLogger(self.r, subs)
         self.logger.info("{} | Forcing Modlog history for subs: {}".format(self.me, modlogger.subs))
         thread = threading.Thread(target=modlogger.log, args=(None,))
         thread.start()
@@ -129,12 +132,14 @@ class SentinelInstance():
     def checkInbox(self):
         for message in self.r.inbox.unread(limit=None):
             self.logger.info('{} | Processing Unread Inbox, MailID: {}'.format(self.me, message.name))
+            message.mark_read()
 
             if message.body.startswith('**gadzooks!'):
                 self.acceptModInvite(message)
+                self.forceModlogHistory("r/" + str(message.subreddit))
                 continue
 
-            message.mark_read()
+            
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
                 self.masterClass.forceModlogHistory(message.body)

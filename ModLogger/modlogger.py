@@ -58,3 +58,5 @@ class ModLogger(object):
     def log(self, limit=100):
         arg_dicts = self.gather_items(limit)
         self.db.log_items(arg_dicts)
+        if not limit:
+            self.r.redditor('thirdegree').message('force modlog history', 'Finished for {}'.format(self.subs))
