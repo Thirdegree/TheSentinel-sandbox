@@ -21,18 +21,18 @@ class ModLogger(object):
         except TypeError:
             return None
 
-    def gather_items(self):
+    def gather_items(self, limit):
         arg_dicts = []
         last_seen = self.db.get_last_seen()
         if self.modLogMulti:
-            log_generator = self.modLogMulti.mod.log()
+            log_generator = self.modLogMulti.mod.log(limit=limit)
         else:
             return
         try:
             #item = log_generator.next()
 
             for item in log_generator:
-                if self.db.is_logged(item.id):
+                if self.db.is_logged(item.id) and limit:
                     continue
                 arg_dict = {
                     "thing_id": item.target_fullname,
@@ -55,6 +55,6 @@ class ModLogger(object):
 
         return arg_dicts
 
-    def log(self):
-        arg_dicts = self.gather_items()
+    def log(self, limit=100):
+        arg_dicts = self.gather_items(limit)
         self.db.log_items(arg_dicts)
