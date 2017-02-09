@@ -1,4 +1,4 @@
-import praw, re, time, requests, sys
+import praw, re, time, requests, sys, threading
 from collections import deque
 from ..helpers.responses import *
 from ..helpers import getSentinelLogger, SlackNotifier
@@ -36,14 +36,14 @@ class SentinelInstance():
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
         self.edited_done = deque()
 
-        self.can_global_message = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
+        self.can_global_action = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
 
         self.blacklisted_subs = ['pokemongo']
 
         #TSB_Count = self.getTSBCrashCount()
         #self.r.redditor('thirdegree').message('Please do the needful', 'and wish /u/Norsefenrir a Happy Birthday. Thank you.\n\n Signed,  \nSkyNet\n\n---\n\nPS: TSB has crashed {} times.'.format(TSB_Count))
 
-    def getTSBCrashCount():
+    def getTSBCrashCount(self):
         with open('C:\_SkyNet\RedditBots\TSB_Crash_Count.txt', 'r') as f:
             data = f.read()
         return int(data)
@@ -58,7 +58,7 @@ class SentinelInstance():
         return True
 
     def globalMessage(self, message):
-        if message.author not in self.can_global_message:
+        if message.author not in self.can_global_action:
             message.reply("You do not have the permissions to do this.")
             raise KeyError
         matchstring = r"(.*)\n\n---\n\n(.*)"
@@ -108,6 +108,23 @@ class SentinelInstance():
             self.logger.debug('PRAW Forbidden Error')
             return False
 
+    def forceModlogHistory(self, body):
+        matchstring = "(?:\/?r\/(\w+)|all)"
+        match = re.findall(matchstring, body, re.I)
+        if not match:
+            return
+        if match[0] == 'all':
+            modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
+        else:
+            matches = list(set([i[1] for i in match]) & set([str(i) for i in self.subsModded]))
+            modlogger = ModLogger(self.r, matches)
+        if not modlogger.subs:
+            return
+        self.logger.info("{} | Forcing Modlog history for subs: {}".format(self.me, modlogger.subs))
+        thread = threading.Thread(target=modlogger.log, args=(None,))
+        thread.start()
+
+
 
     def checkInbox(self):
         for message in self.r.inbox.unread(limit=None):
@@ -118,6 +135,11 @@ class SentinelInstance():
                 continue
 
             message.mark_read()
+
+            if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
+                self.masterClass.forceModlogHistory(message.body)
+
+
 
             if "alertbroadcast" in message.subject.lower():
                 self.logger.info("Sending global modmail alert")

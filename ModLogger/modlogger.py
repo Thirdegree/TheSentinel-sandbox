@@ -32,7 +32,7 @@ class ModLogger(object):
             #item = log_generator.next()
 
             for item in log_generator:
-                if self.db.is_logged(item.id) and limit:
+                if limit and self.db.is_logged(item.id):
                     continue
                 arg_dict = {
                     "thing_id": item.target_fullname,

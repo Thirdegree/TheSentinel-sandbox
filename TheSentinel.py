@@ -112,6 +112,10 @@ class TheSentinel(object):
             self.last_mod_alert = datetime.now()
         return sent
 
+    def forceModlogHistory(self, body):
+        for sentinel, _ in self.sentinels:
+            sentinel.forceModlogHistory(body)
+
     def writeSubs(self):
         subs = []
         for sentinel, _ in self.sentinels:
