@@ -1,6 +1,6 @@
 from multiprocessing import Queue
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import requests.exceptions
 import praw
@@ -19,6 +19,7 @@ from .Twitter import Twitter
 from .objects import Memcache, SentinelDatabase
 from .oAuths import oAuth
 from .Reddit import SentinelInstance
+from .exceptions import TooFrequent
 
 
 lock = threading.Lock()
@@ -67,6 +68,7 @@ class TheSentinel(object):
         self.blacklistSub = 'TheSentinelBot'
 
         self.logger.info('Created locking service')
+        self.last_mod_alert = None
 
 
     def get_items(self):
@@ -96,6 +98,19 @@ class TheSentinel(object):
         if values_dict['action'] in func_dict:
             func_dict[values_dict['action']](thing=None, subreddit=values_dict['subreddit'], urls=[values_dict['url']], values_dict=values_dict)
             self.cache.add(True, keyString='webrequest')
+
+    def messageSubreddits(self, title, body):
+        
+        if self.last_mod_alert:
+            sincelast = datetime.now() - self.last_mod_alert
+            if sincelast < timedelta(hours=1):
+	            raise TooFrequent(sincelast)
+        sent = True
+        for sentinel, _ in self.sentinels:
+            sent = sent and sentinel.messageSubreddits(title, body)
+        if sent:
+            self.last_mod_alert = datetime.now()
+        return sent
 
     def writeSubs(self):
         subs = []

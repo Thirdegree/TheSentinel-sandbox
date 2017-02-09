@@ -4,6 +4,7 @@ from ..helpers.responses import *
 from ..helpers import getSentinelLogger, SlackNotifier
 from ..objects import Memcache
 from ..ModLogger import ModLogger
+from ..exceptions import TooFrequent
 
 class SentinelInstance():
     def __init__(self, oauth, queue, masterClass):
@@ -35,6 +36,8 @@ class SentinelInstance():
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
         self.edited_done = deque()
 
+        self.can_global_message = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
+
         self.blacklisted_subs = ['pokemongo']
 
         #TSB_Count = self.getTSBCrashCount()
@@ -47,6 +50,23 @@ class SentinelInstance():
 
     def __str__(self):
         return self.me.name
+
+    def messageSubreddits(self, title, message):
+        for sub in self.subsModded:
+            sub.message(title, message)
+        self.logger.info("{} | Mod Alerts sent".format(self.me))
+        return True
+
+    def globalMessage(self, message):
+        if message.author not in self.can_global_message:
+            message.reply("You do not have the permissions to do this.")
+            raise KeyError
+        matchstring = r"(.*)\n\n---\n\n(.*)"
+        match = re.match(matchstring, message.body)
+        if not match:
+            return False
+        return self.masterClass.messageSubreddits(match.group(1), match.group(2))
+
 
 
     def clearQueue(self):
@@ -98,6 +118,20 @@ class SentinelInstance():
                 continue
 
             message.mark_read()
+
+            if "alertbroadcast" in message.subject.lower():
+                self.logger.info("Sending global modmail alert")
+                try:
+                    if self.globalMessage(message):
+                        message.reply("Message sent")
+                    else:
+                        message.reply("At least one send failed.")
+                except TooFrequent as e:
+                    message.reply("You have sent a message too recently. Please wait {} minutes.".format(e.waitTime))
+                except KeyError:
+                    pass
+
+
             if "add to blacklist" in message.subject.lower():
                 self.addBlacklist(message)
                 continue

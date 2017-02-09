@@ -40,6 +40,7 @@ class Blacklist(Database):
 
 
 
+
     def isBlacklisted(self, subreddit, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
         if (not media_author) and (not media_channel_id):
             self.logger.warning('No Video Provided')
@@ -65,6 +66,7 @@ class Blacklist(Database):
             with self.blacklist_conn as conn:
                 with conn.cursor("isBlacklisted") as c:
                     c.execute(query, {'media_channel_id':media_channel_id})            
+
 
                     try:
                         fetched = c.fetchone()
@@ -118,6 +120,7 @@ class Blacklist(Database):
             with conn.cursor() as c:
                 c.execute((execString1+execString2).format(subreddit_id=subreddit_id), kwargs)
 
+
         self.logger.info(u'Removed from Blacklist. MediaAuth: {} | ChanAuth: {}'.format(media_author, media_channel_id))
         return True
 
@@ -129,6 +132,7 @@ class Blacklist(Database):
                 fetched = c.fetchall()
 
         self.logger.debug("Fetched {} items".format(len(fetched)))
+
         return [i[0] for i in fetched] # list of tuples -> list of thingids
 
     def markProcessed(self, kwargs_list):
@@ -207,8 +211,10 @@ class Blacklist(Database):
 
     """
     def next_value(self):
-        self.c.execute("SELECT id FROM thing ORDER BY id DESC LIMIT 1")
-        result = self.c.fetchone()
+        with self.conn:
+            with self.conn.cursor("next_value") as c:
+                c.execute("SELECT id FROM thing ORDER BY id DESC LIMIT 1")
+                result = c.fetchone()
         return result[0]+1
     """
 
@@ -225,6 +231,7 @@ class SlackHooks(Database):
     def getHooks(self, slackTeam=None, subreddit=None):
         with self.slackhooks_conn as conn:
             with conn.cursor() as c:
+
                 if (not slackTeam) and (not subreddit):
                     c.execute("SELECT srname, webhook_url, slack_channel FROM tsb_slackhooks")
                     self.logger.debug(u'Fetched all slackHooks')
@@ -237,12 +244,14 @@ class SlackHooks(Database):
     def addHook(self, subreddit, channel, hookURL, slackTeam):
         with self.slackhooks_conn as conn:
             with conn.cursor() as c:
+
                 c.execute("INSERT INTO tsb_slackhooks (srname, webhook_url, slack_channel, slack_team) VALUES (%s, %s, %s, %s)", (subreddit, hookURL, channel, slackTeam))
         self.logger.debug(u'Hook added for /r/{} | SlackTeam: {}'.format(subreddit, slackTeam))
 
     def removeHook(self, slackTeam=None, subreddit=None):
         with self.slackhooks_conn as conn:
             with conn.cursor() as c:
+
                 if subreddit and slackTeam is None:
                     c.execute("DELETE FROM tsb_slackhooks WHERE srname=%s", (subreddit,))
                     self.logger.debug(u'Removed hook for /r/{}'.format(subreddit))
@@ -267,6 +276,7 @@ class NSA(Database):
             with conn.cursor() as c:
                 if kwargs_list:
                     self.logger.debug("Adding {} users".format(len(kwargs_list)))
+
                     args = ",".join([c.mogrify("(%(author_id)s, %(author)s, %(permalink)s, EXTRACT(EPOCH from now()), %(thingcreated_utc)s, %(content_creator)s)", x) for x in kwargs_list])
                     execString = "INSERT INTO users (authorid, author, permalink, current_utc, authorcreated_utc, iscontentcreator) VALUES " +  args + " ON CONFLICT DO NOTHING"
                     c.execute(execString)
@@ -277,6 +287,7 @@ class NSA(Database):
         execString = "SELECT authorid FROM users"
         newcur.execute(execString)
         fetched = newcur.fetchall()
+        self.conn.commit()
         newcur.close()
         self.nsa_conn.commit()
         self.logger.debug("Fetched {} users".format(len(fetched)))
@@ -324,6 +335,7 @@ class ModloggerDB(Database):
         execString1 = "SELECT subreddit_name FROM subreddit WHERE modlog_enabled=true"
         with self.modlogger_conn as conn:
             with conn.cursor('get_subs_enabled') as c:
+
                 c.execute(execString1)
                 fetched = c.fetchall()
         if fetched:
@@ -334,6 +346,7 @@ class ModloggerDB(Database):
         execString1 = "SELECT modactionid from modlog limit " + str(limit)
         with self.modlogger_conn as conn:
             with conn.cursor('get_last_seen') as c:
+
                 c.execute(execString1)
                 fetched = c.fetchall()
         if fetched:
@@ -363,6 +376,7 @@ class ModloggerDB(Database):
                 c.execute('SELECT * FROM modlog WHERE modactionid=%s', (modActionID,))
                 return bool(c.fetchone())
 
+
 class oAuthDatabase(Database):
     def __init__(self):
         super(oAuthDatabase, self).__init__()
@@ -387,3 +401,4 @@ class TheTraveler(NSA):
 class Zion(SlackHooks, Blacklist):
     def __init__(self):
         super(Zion, self).__init__()
+
