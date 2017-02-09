@@ -225,11 +225,10 @@ class GAPIProcess(APIProcess):
             'username': 'https://www.googleapis.com/youtube/v3/channels?part=snippet&forUsername={}&fields=items(id%2Csnippet%2Ftitle)&key={}' #GOOD}
         }
         regexs = {
-            'video': r'(?:(?:watch\?.*?v=(.+?)(?:#.*)?)|youtu\.be\/(.+?)(?:\?.*)?)(?:#|\&|\/|$)',
-            'channel': r'''(?i)channel\/(.+?)(?:\/|\?|$)''',
-            'playlist': r'list=((?!videoseries).+?)(?:#|\/|\?|\&|$)',
-            'username': r'user\/(.+)(?:\?|$|\/)',
-            
+            'channel': r'''(?i)channel\/(.*?)(?:\/|\?|$)''',
+            'playlist': r'(?<!watch).*?list=((?!videoseries).*?)(?:#|\/|\?|\&|$)',
+            'username': r'user\/(.*)(?:\?|$|\/)',
+            'video': r'(?:(?:watch\?.*?v=(.*?)(?:#.*)?)|youtu\.be\/(.*?)(?:\?.*)?)(?:#|\&|\/|$)'
         }
 
         Config = configparser.ConfigParser()
@@ -239,6 +238,24 @@ class GAPIProcess(APIProcess):
         self.logger.debug('Running GAPI Datapull')
         super(GAPIProcess, self).__init__(GAPI_URLS, regexs, datapulls.GAPIpulls)
         self.api_key = api_key
+
+    def _getData(self, url):
+        self.logger.debug('Getting URL Redirect Data')
+        try:
+            url = requests.get(url).url #deals with redirects
+        except requests.exceptions.ConnectionError:
+            raise KeyError("Problem resolving url. No match.")
+        try:
+            force_order = ['video', 'channel', 'username', 'playlist']
+            for i in force_order:
+                match = re.search(self.regexs[i], url)
+                if match:
+                    self.logger.debug('Match Found')
+                    break
+            return (i, match.group(1))
+        except AttributeError:
+            self.logger.debug(u'No Match Found. URL: {}'.format(url))
+            raise KeyError("No match found - %s" % url)
 
 class DMAPIProcess(APIProcess):
     def __init__(self):
