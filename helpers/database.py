@@ -122,13 +122,12 @@ class Blacklist(Database):
         return True
 
     def isProcessed(self, subreddits=None):
-        newcur = self.blacklist_conn.cursor()
+        with self.blacklist_conn as conn:
+            with conn.cursor() as c:
+                statement = b"SELECT thing_id FROM sentinel_actions"
+                c.execute(statement)
+                fetched = c.fetchall()
 
-        statement = b"SELECT thing_id FROM sentinel_actions"
-        newcur.execute(statement)
-        fetched = newcur.fetchall()
-        newcur.close()
-        self.blacklist_conn.commit()
         self.logger.debug("Fetched {} items".format(len(fetched)))
         return [i[0] for i in fetched] # list of tuples -> list of thingids
 
