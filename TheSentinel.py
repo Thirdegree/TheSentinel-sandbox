@@ -184,6 +184,13 @@ class TheSentinel(object):
                 return True
         return False
 
+    def needsRemovalMany(self, items):
+        data = [(thing, str(thing.subreddit), url) for thing, urls in items for url in urls]
+        needs_removal = self.isBlacklistedMany(data)
+        for thing, _ in needs_removal:
+            self.remove(thing)
+
+
     #REDDIT SPECIFIC HERE
     def needsRemoval(self, item):
         thing, urls = item
@@ -194,6 +201,12 @@ class TheSentinel(object):
             if self.isBlacklisted(str(thing.subreddit), url):
                 return 2, thing
         return hasContent, None
+
+    def isBlacklistedMany(self, data): #[(thing, subreddit, url)]
+        all_items = []
+        for i, k in self.processes.items():
+            all_items += k.hasBlacklistedMany(data)
+        return filter(lambda x: x[1], all_items)
 
     def isBlacklisted(self, subreddit, url):
         for i, k in self.processes.items():
@@ -367,13 +380,7 @@ class TheSentinel(object):
             try:
                 #self.logger.debug('Cycling..')
                 items = self.get_items()
-                for item in items:
-                    try:
-                        level, thing = self.needsRemoval(item)
-                    except requests.exceptions.HTTPError:
-                        continue
-                    if level == 2:
-                        self.remove(thing)
+                self.needsRemovalMany(items)
                 #time.sleep(10) why lol
 
             except KeyboardInterrupt:

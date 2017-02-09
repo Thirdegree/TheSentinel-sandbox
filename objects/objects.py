@@ -7,6 +7,7 @@ import tweepy
 
 from ..objects import datapulls
 import requests
+import grequests
 
 from ..helpers import Zion, getSentinelLogger, TheTraveler, Utility
 from ..exceptions import InvalidAddition
@@ -23,6 +24,8 @@ class MediaProcess(object):
         self.mediaURLs = mediaURLs
 
         self.logger.debug('Initialized MediaProcess')
+
+
 
 
     def validateURL(self, url):
@@ -46,6 +49,15 @@ class MediaProcess(object):
                 self.logger.debug('Channel is Blacklisted. URL: {}'.format(url))
                 return True
         return False
+
+    def hasBlacklistedMany(self, data): #data is a list of (thing, subreddit, url)
+        data_filtered = filter(lambda x: self.validateURL(x[2]), data)
+        data_channels = self.APIProcess.getInformationMany(data_filtered)
+        final = [(thing, any(self.db.isBlacklisted(subreddit, **x) for x in i))
+                 for thing, subreddit, i in data_channels]
+        return final
+
+
 
     def addToBlacklist(self, subreddit, url, playlist=False):
         if not self.validateURL(url):
@@ -127,6 +139,49 @@ class APIProcess(object):
                 pass
         return alldata
 
+    def getInformationMany(self, data): #data is a list of (thing, subreddit, url)
+        #returns a list of (thing, responses)
+        data_for_json = [] #[(key, data)]
+        for item in data:
+            try:
+                data_for_json.append(self._getData(item[2]))
+            except KeyError:
+                data_for_json.append((None, None))
+
+        many_responses = self._getJSONResponseMany(data_for_json) #[(key, json or None)]
+        final_responses = []
+        for index in range(len(many_responses)):
+            try:
+                key, jsonResponse = many_responses[index]
+                alldata = self.data_pulls[key](jsonResponse) or []
+            except TypeError:
+                final_responses.append([])
+                continue
+            except KeyError:
+                final_responses.append([])
+                continue
+            if key == 'playlist':
+                self.logger.debug('Getting Playlist Data')
+                key, jsonResponse = self._getJSONResponse(data, 'playlist videos')
+                try:
+                    alldata += self.data_pulls['playlist videos'](jsonResponse)
+                except TypeError:
+                    pass
+
+            final_responses.append(alldata)
+
+        return list(zip([i[0] for i in data], final_responses))
+    
+    def _getJSONResponseMany(self, data_list): #[(key, data)]
+        many_requests = [grequests.get(self.API_URLS[key].format(data, self.api_key), headers=self.headers) if key else grequests.get(None) for key, data in data_list]
+
+        many_response = grequests.map(many_requests)
+        returns = zip([key for key, data in data_list], [response.json() if response and response.status_code==200 else None for response in many_response])
+        return list(returns)
+
+
+
+
 class TwitterAPIProcess(APIProcess):
     def __init__(self):
 
@@ -171,6 +226,14 @@ class TwitterAPIProcess(APIProcess):
 
         
         return alldata
+
+    def getInformationMany(self, data):#data is a list of (thing, subreddit, url)
+        #THIS IS NOT ASYNC, I just don't know how I would make that work with tweepy
+        self.logger.debug(u'Getting Information many')
+        all_responses = []
+        for thing, subreddit, url in data:
+            all_responses.append((thing, self.getInformation(url)))
+        return all_responses
 
 
 class VidmeAPIProcess(APIProcess):
@@ -335,6 +398,7 @@ class VMOAPIProcess(APIProcess):
             self.logger.debug('Getting Vimeo User Data')
             return super(VMOAPIProcess, self)._getJSONResponse(data, 'user')
 
+
 class SCAPIProcess(APIProcess):
     def __init__(self):
         # Initialize the logger
@@ -383,7 +447,37 @@ class SCAPIProcess(APIProcess):
             self.logger.error(u'Error Getting Soundcloud Data. URL: {}'.format(url))
             return []
         
+    def getInformationMany(self, data): #data is a list of (thing, subreddit, url)
+        #returns a list of (thing, responses)
+        data_for_json = [] #[(key, data)]
+        for item in data:
+            try:
+                data_for_json.append(self._getData(item[2]))
+            except KeyError:
+                data_for_json.append((None, None))
 
+        many_responses = self._getJSONResponseMany(data_for_json) #[(key, json or None)]
+        final_responses = []
+        for index in range(len(many_responses)):
+            try:
+                key, jsonResponse = many_responses[index]
+                alldata = self.data_pulls[key](jsonResponse) or []
+            except TypeError:
+                final_responses.append([])
+                continue
+
+            self.logger.debug('Received data response')
+            if jsonResponse['kind'] == 'playlist':
+                self.logger.debug('Parsing playlist data')
+                key, jsonResponse = self._getJSONResponse(data, 'playlist videos')
+                try:
+                    alldata += self.data_pulls['playlist videos'](jsonResponse)
+                except TypeError:
+                    pass
+
+            final_responses.append(alldata)
+
+        return list(zip([i[0] for i in data], final_responses))
 
 
 class SentinelDatabase(Zion, TheTraveler):
