@@ -35,6 +35,7 @@ class ModLogger(object):
                 if limit and self.db.is_logged(item.id):
                     continue
                 arg_dict = {
+                    "description": item.description,
                     "thing_id": item.target_fullname,
                     "mod_name": str(item.mod),
                     "author_name": str(item.target_author),
