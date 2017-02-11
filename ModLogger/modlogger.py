@@ -38,7 +38,7 @@ class ModLogger(object):
                     "description": item.description,
                     "thing_id": item.target_fullname,
                     "mod_name": str(item.mod),
-                    "author_name": str(item.target_author),
+                    "author_name": None if len(item.target_author) == 0 else item.target_author,
                     "action": item.action,
                     "action_reason": item.details,
                     "permalink": item.target_permalink,
