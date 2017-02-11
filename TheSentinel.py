@@ -329,6 +329,7 @@ class TheSentinel(object):
             data = self.getInfo(thing, urls)
         except KeyError:
             return None
+        authors = []
         for i in data:
             i['thingid'] = thing.fullname
             i['author'] = str(thing.author) if thing else values_dict['modname']
@@ -340,18 +341,27 @@ class TheSentinel(object):
                 i['permalink'] = None
             i['body'] = thing.body
             self.logger.info(u'Adding to database: {} for sub r/{}'.format(i['thingid'], i['subreddit']))
-            return self.database.addBlacklist(i)
+            success = self.database.addBlacklist(i)
+            if success:
+	            authors.append(i['media_author'])
+        return authors
 
 
     #REDDIT SPECIFIC HERE
     def removeBlacklist(self, thing, subreddit, urls=[], values_dict=None):
         data = self.getInfo(thing, urls)
                 
+        authors = []
         for i in data:
             i['subreddit'] = str(subreddit)
             i['date'] = datetime.today()
+            i['author'] = str(thing.author) if thing else values_dict['modname']
             self.logger.info(u'Removing from database: {} for sub r/{}'.format(thing.fullname if thing else 'WebRequest', i['subreddit']))
-            self.database.removeBlacklist(**i)
+            success = self.database.removeBlacklist(**i)
+            if success:
+	            authors.append(i['media_author'])
+
+        return authors
 
     def phone_home(self):
         for i in self.cache.get_new('marco_thesentinelbot'):

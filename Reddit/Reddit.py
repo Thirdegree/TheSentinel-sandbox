@@ -22,7 +22,7 @@ class SentinelInstance():
         self.logger.info(u"{} | Modding {} users in {}".format(self.me, self.subCount, [str(x) for x in self.subsModded]))
         self.modMulti = self.r.subreddit('mod')
         self.globalBlacklistSubs = ['YT_Killer','TheSentinelBot']
-        self.subextractor = re.compile("r\/(.*)")
+        self.subextractor = re.compile("r\/(.*)\b")
 
 
         #this is fucking awful. it's just a list of moderators of the above two subs.
@@ -268,8 +268,9 @@ class SentinelInstance():
             elif thing.author in mods:
                 self.logger.info(u'{} | Add To Blacklist request from: {}'.format(self.me, thing.author))
                 try:
-                    if self.masterClass.addBlacklist(thing, subreddit):
-                        thing.reply("Channel added to the blacklist")
+                    bl = self.masterClass.addBlacklist(thing, subreddit)
+                    if bl:
+                        thing.reply("Channel(s) added to the blacklist: {}".format(bl))
                     else:
                         thing.reply("Channel add failed.")
                 except requests.exceptions.HTTPError:
@@ -294,8 +295,9 @@ class SentinelInstance():
             elif thing.author in mods:
                 self.logger.info(u'{} | Remove From Blacklist request from: {}'.format(self.me, thing.author))
                 try:
-                    self.masterClass.removeBlacklist(thing, subreddit)
-                    thing.reply("Channel removed from the blacklist")
+                    bl = self.masterClass.removeBlacklist(thing, subreddit)
+                    if bl:
+                        thing.reply("Channel(s) removed from the blacklist: {}".format(bl))
                 except requests.exceptions.HTTPError:
                     pass
         except praw.exceptions.APIException:
