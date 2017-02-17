@@ -383,7 +383,7 @@ class TheSentinel(object):
                 self.logger.error('General Exception - Connection Error - Sleeping 30')
                 time.sleep(30)
             except:
-                self.logger.error(u"General exception - Sleeping 30")
+                self.logger.critical(u"General exception - Sleeping 30")
                 time.sleep(30)
 
         else:
