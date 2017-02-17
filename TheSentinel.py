@@ -22,8 +22,6 @@ from .Reddit import SentinelInstance
 from .exceptions import TooFrequent
 
 
-lock = threading.Lock()
-
 class TheSentinel(object):
     def __init__(self):
         youtube = YouTube()
@@ -69,24 +67,17 @@ class TheSentinel(object):
 
         self.last_mod_alert = None
 
+        
 
     def get_items(self):
         # returns (thing, [urls])
-        lock.acquire()
-        self.logger.debug('Aquired the lock for Memcache Generator')
         try:
             for item in self.cache.get_new():
-               	self.phone_home()
-               	if item:
-                    self.logger.debug(u'Returning from memcache: {}'.format(item.fullname if item else item)) 
+                if item:
+                    #self.logger.debug(u'Returning from memcache: {}'.format(item.fullname if item else item)) 
                     yield self.get_urls(item)
-            else:
-            	self.phone_home()
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
-        finally:
-            lock.release()
-            self.logger.debug('Released the Memcache Generator Lock')
 
     def process_webrequest(self, values_dict):
         values_dict = json.loads(values_dict)
@@ -103,7 +94,7 @@ class TheSentinel(object):
         if self.last_mod_alert:
             sincelast = datetime.now() - self.last_mod_alert
             if sincelast < timedelta(hours=1):
-	            raise TooFrequent(sincelast)
+                raise TooFrequent(sincelast)
         sent = True
         for sentinel, _ in self.sentinels:
             sent = sent and sentinel.messageSubreddits(title, body)
@@ -210,8 +201,11 @@ class TheSentinel(object):
 
     def isBlacklisted(self, subreddit, url):
         for i, k in self.processes.items():
-            if k.hasBlacklisted(subreddit, url):
-                return True
+            try:
+                if k.hasBlacklisted(subreddit, url):
+                    return True
+            except requests.exceptions.SSLError:
+                continue
         return False
 
     def isProcessed(self, subreddits):
@@ -236,8 +230,8 @@ class TheSentinel(object):
                 'subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
                 'author': str(thing.author),
-                'thingcreated_utc': datetime.fromtimestamp( thing.created_utc),
-                'thingedited_utc': datetime.fromtimestamp(thing.edited) if thing.edited else None,
+                'thingcreated_utc': datetime.utcfromtimestamp( thing.created_utc),
+                'thingedited_utc': datetime.utcfromtimestamp(thing.edited) if thing.edited else None,
                 'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
                 'permalink': link,
                 'media_author': '',
@@ -342,6 +336,7 @@ class TheSentinel(object):
             data = self.getInfo(thing, urls)
         except KeyError:
             return None
+        authors = []
         for i in data:
             i['thingid'] = thing.fullname
             i['author'] = str(thing.author) if thing else values_dict['modname']
@@ -353,30 +348,37 @@ class TheSentinel(object):
                 i['permalink'] = None
             i['body'] = thing.body
             self.logger.info(u'Adding to database: {} for sub r/{}'.format(i['thingid'], i['subreddit']))
-            return self.database.addBlacklist(i)
+            success = self.database.addBlacklist(i)
+            if success:
+                authors.append(i['media_author'])
+        return authors
 
 
     #REDDIT SPECIFIC HERE
     def removeBlacklist(self, thing, subreddit, urls=[], values_dict=None):
         data = self.getInfo(thing, urls)
                 
+        authors = []
         for i in data:
             i['subreddit'] = str(subreddit)
             i['date'] = datetime.today()
+            i['author'] = str(thing.author) if thing else values_dict['modname']
             self.logger.info(u'Removing from database: {} for sub r/{}'.format(thing.fullname if thing else 'WebRequest', i['subreddit']))
-            self.database.removeBlacklist(**i)
+            success = self.database.removeBlacklist(**i)
+            if success:
+                authors.append(i['media_author'])
+
+        return authors
 
     def phone_home(self):
         for i in self.cache.get_new('marco_thesentinelbot'):
             self.cache.add_polo()
-
 
     def main(self):
         self.startThreads()
         self.writeSubs()
         running = True
         while running:
-            
             try:
                 #self.logger.debug('Cycling..')
                 items = self.get_items()

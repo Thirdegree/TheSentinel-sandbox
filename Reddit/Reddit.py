@@ -6,6 +6,7 @@ from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..exceptions import TooFrequent
 
+
 class SentinelInstance():
     def __init__(self, oauth, queue, masterClass):
         # full logger setup
@@ -22,7 +23,7 @@ class SentinelInstance():
         self.logger.info(u"{} | Modding {} users in {}".format(self.me, self.subCount, [str(x) for x in self.subsModded]))
         self.modMulti = self.r.subreddit('mod')
         self.globalBlacklistSubs = ['YT_Killer','TheSentinelBot']
-        self.subextractor = re.compile("r\/(.*)")
+        self.subextractor = re.compile("r\/(.*)\b")
 
 
         #this is fucking awful. it's just a list of moderators of the above two subs.
@@ -39,14 +40,6 @@ class SentinelInstance():
         self.can_global_action = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
 
         self.blacklisted_subs = ['pokemongo']
-
-        #TSB_Count = self.getTSBCrashCount()
-        #self.r.redditor('thirdegree').message('Please do the needful', 'and wish /u/Norsefenrir a Happy Birthday. Thank you.\n\n Signed,  \nSkyNet\n\n---\n\nPS: TSB has crashed {} times.'.format(TSB_Count))
-
-    def getTSBCrashCount(self):
-        with open('C:\_SkyNet\RedditBots\TSB_Crash_Count.txt', 'r') as f:
-            data = f.read()
-        return int(data)
 
     def __str__(self):
         return self.me.name
@@ -123,9 +116,14 @@ class SentinelInstance():
             self.logger.info("{} | Found no matching subs to force modlog history from {}".format(self.me, subs_asked))
             return
         modlogger = ModLogger(self.r, subs)
-        self.logger.info("{} | Forcing Modlog history for subs: {}".format(self.me, modlogger.subs))
-        thread = threading.Thread(target=modlogger.log, args=(None,))
-        thread.start()
+        threads = []
+        for sub in modlogger.subs_intersec: # I'm not sure why, but this works far better than a single modlogger for all the subs to force
+            temp = ModLogger(self.r, [sub,])
+            threads.append(threading.Thread(target=temp.log, args=(None,)))
+        if modlogger.modLogMulti:
+            self.logger.info("{} | Forcing Modlog history for subs: {}".format(self.me, [str(i) for i in modlogger.subs_intersec]))
+        for thread in threads:
+            thread.start()
 
 
 
@@ -137,14 +135,11 @@ class SentinelInstance():
             if message.body.startswith('**gadzooks!'):
                 self.acceptModInvite(message)
                 self.forceModlogHistory("r/" + str(message.subreddit))
+                self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
                 continue
-
-            
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
                 self.masterClass.forceModlogHistory(message.body)
-
-
 
             if "alertbroadcast" in message.subject.lower():
                 self.logger.info("Sending global modmail alert")
@@ -157,7 +152,6 @@ class SentinelInstance():
                     message.reply("You have sent a message too recently. Please wait {} minutes.".format(e.waitTime))
                 except KeyError:
                     pass
-
 
             if "add to blacklist" in message.subject.lower():
                 self.addBlacklist(message)
@@ -187,28 +181,6 @@ class SentinelInstance():
             if message.distinguished == 'admin':
                 self.r.send_message('/r/' + self.messageSub, 'New Admin Mail: FROM: /u/{} | SUBJECT: {}'.format(message.author.name.encode("ascii", "xmlcharrefreplace"), message.subject.encode("ascii", "xmlcharrefreplace")), "A new Admin mail has come in. \n\n[**Link to message**](https://www.reddit.com/message/messages/{}) \n\n---\n\n{}".format(message.id, message.body.encode("ascii", "xmlcharrefreplace")))
                 self.logger.debug('Oh hey! We got Admin Mail!')
-
-    """def checkModmail(self):
-        toAdd = []
-        for message in self.sub.modMulti.unread(limit=None):
-            if message.fullname in self.done:
-                continue
-            toAdd.append(message)
-            self.logger.debug('{} | Processing Mod Mail, MailID: {}'.format(self.me, message.name))
-            if "add to global blacklist" in message.subject.lower():
-                if message.author in self.globalBlacklistMods and message.subreddit.display_name in self.globalBlacklistSubs:
-                    try:
-                        self.masterClass.addBlacklist(message, message.subreddit, isGlobal=True)
-                        message.reply("Channel added to Blacklist.")
-                        message.mark_read()
-                    except requests.exceptions.HTTPError:
-                        continue
-                        #message.reply("Channel add failed. If the channel you requested was from Soundcloud, this is a known bug by Soundcloud.")
-                    except KeyError:
-                        continue
-                        #message.reply("Channel add failed. If the channel you requested was from Soundcloud, this is a known bug by Soundcloud.")
-
-        self.masterClass.markProcessed(toAdd)"""
 
     def checkContent(self):
         toAdd = []
@@ -268,8 +240,9 @@ class SentinelInstance():
             elif thing.author in mods:
                 self.logger.info(u'{} | Add To Blacklist request from: {}'.format(self.me, thing.author))
                 try:
-                    if self.masterClass.addBlacklist(thing, subreddit):
-                        thing.reply("Channel added to the blacklist")
+                    bl = self.masterClass.addBlacklist(thing, subreddit)
+                    if bl:
+                        thing.reply("Channel(s) added to the blacklist: {}".format(bl))
                     else:
                         thing.reply("Channel add failed.")
                 except requests.exceptions.HTTPError:
@@ -294,8 +267,9 @@ class SentinelInstance():
             elif thing.author in mods:
                 self.logger.info(u'{} | Remove From Blacklist request from: {}'.format(self.me, thing.author))
                 try:
-                    self.masterClass.removeBlacklist(thing, subreddit)
-                    thing.reply("Channel removed from the blacklist")
+                    bl = self.masterClass.removeBlacklist(thing, subreddit)
+                    if bl:
+                        thing.reply("Channel(s) removed from the blacklist: {}".format(bl))
                 except requests.exceptions.HTTPError:
                     pass
         except praw.exceptions.APIException:
@@ -347,19 +321,14 @@ class SentinelInstance():
         while not self.masterClass.killThreads:
             #self.logger.debug('{} | Cycling..'.format(self.me.name))
             try:
-                time.sleep(10)
                 self.done = set(self.masterClass.isProcessed(self.subsModded))
                 #self.modMulti = self.r.subreddit('mod')
 
                 self.checkContent()
-                self.logger.debug('{} | Done w/ checkContent | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
                 self.checkInbox()
-                self.logger.debug('{} | Done w/ checkInbox | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
-                #self.checkModmail()
+                #self.checkModmail() # Not Used
                 self.clearQueue()
-                self.logger.debug('{} | Done w/ clearQueue | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
                 self.modlogger.log()
-                self.logger.debug('{} | Done w/ modlogger.log | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
                 if self.masterClass.killThreads:
                     self.logger.info("{} | Acknowledging killThread".format(self.me))
             except praw.exceptions.APIException:

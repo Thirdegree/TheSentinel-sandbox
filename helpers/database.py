@@ -64,7 +64,7 @@ class Blacklist(Database):
             subquery = "SELECT id FROM subreddit WHERE subreddit_name in ('YT_Killer', 'TheSentinelBot', \'{}\')".format(subreddit)
             query = "SELECT 1 FROM sentinel_blacklist WHERE subreddit_id in ({}) AND media_channel_id=%(media_channel_id)s".format(subquery)
             with self.blacklist_conn as conn:
-                with conn.cursor("isBlacklisted") as c:
+                with conn.cursor() as c:
                     c.execute(query, {'media_channel_id':media_channel_id})            
 
 
@@ -73,7 +73,7 @@ class Blacklist(Database):
                     except psycopg2.ProgrammingError:
                         return False            
             if fetched:
-                self.logger.info(u'Media Channel Blacklisted. Sub: {} | Media_Author: {} | MediaPlatform: {}'.format(subreddit, media_author or media_channel_id, media_platform))
+                self.logger.info(u'Media Channel Blacklisted. Sub: {} | Media_Author: {} | MediaPlatform: {}'.format(subreddit, media_author, media_platform))
                 return True
         self.logger.debug(u'Channel not blacklisted. Sub: {} | ChanID: {} | MediaAuth: {}'.format(subreddit, media_channel_id, media_author))
         return False
@@ -111,7 +111,7 @@ class Blacklist(Database):
             'media_channel_id':media_channel_id,
             'author': author,
             }
-        subreddit_id = "SELECT id FROM subreddit WHERE subreddit_name=%s"%subreddit
+        subreddit_id = "SELECT id FROM subreddit WHERE subreddit_name='%s'"%subreddit
 
         execString1 = "INSERT INTO sentinel_blacklist_history SELECT *, now() as unblacklist_utc, %(author)s as unblacklist_by FROM sentinel_blacklist WHERE subreddit_id=({subreddit_id}) AND media_channel_id=%(media_channel_id)s;"
         execString2 = "DELETE FROM sentinel_blacklist WHERE subreddit_id=({subreddit_id}) AND media_channel_id=%(media_channel_id)s;"
@@ -127,7 +127,7 @@ class Blacklist(Database):
     def isProcessed(self, subreddits=None):
         with self.blacklist_conn as conn:
             with conn.cursor() as c:
-                statement = b"SELECT thing_id FROM sentinel_actions"
+                statement = b"SELECT thing_id FROM sentinel_actions ORDER BY id DESC LIMIT 10000"
                 c.execute(statement)
                 fetched = c.fetchall()
 
@@ -162,16 +162,19 @@ class Blacklist(Database):
 
                         }
                         for i in range(len(media_info['links'])):
-                            query = "(%s, %s, %s, (SELECT id FROM media_platform WHERE platform_name=%s), %s, %s)"
-                            call = (item['thing_id'], 
-                                    media_info['authors'][i], 
-                                    media_info['channel_ids'][i], 
-                                    media_info['platforms'][i], 
-                                    media_info['links'][i],
-                                    item['thingcreated_utc'],)
+                            try:
+                                query = "(%s, %s, %s, (SELECT id FROM media_platform WHERE platform_name=%s), %s, %s)"
+                                call = (item['thing_id'], 
+                                        media_info['authors'][i], 
+                                        media_info['channel_ids'][i], 
+                                        media_info['platforms'][i], 
+                                        media_info['links'][i],
+                                        item['thingcreated_utc'],)
 
-                            statement = c.mogrify(query, call)
-                            args2.append(statement)
+                                statement = c.mogrify(query, call)
+                                args2.append(statement)
+                            except IndexError: #What??
+                                continue
 
             args1len = len(args)
             args2len = len(args2)
@@ -360,11 +363,12 @@ class ModloggerDB(Database):
             with self.modlogger_conn as conn:
                 with conn.cursor() as c:
                     if kwargs_list:
-                        args = b",".join([c.mogrify("(%(thing_id)s, %(mod_name)s, %(action)s, %(action_reason)s, %(thingcreated_utc)s, %(modaction_id)s, (SELECT id FROM subreddit WHERE subreddit_name=%(subreddit)s), %(subreddit)s)", x) for x in kwargs_list])
+                        args = b",".join([c.mogrify("(%(thing_id)s, %(mod_name)s, %(action)s, %(action_reason)s, %(thingcreated_utc)s, %(modaction_id)s, (SELECT id FROM subreddit WHERE subreddit_name=%(subreddit)s), %(author_name)s, %(description)s)", x) for x in kwargs_list])
 
-                        execString1 = b'INSERT INTO modlog (thing_id, mod, action, actionreason, action_utc, modactionid, subreddit_id, subreddit_name) VALUES ' + args + b" ON CONFLICT (modactionid) DO UPDATE SET subreddit_id=excluded.subreddit_id WHERE modlog.modactionid=excluded.modactionid"
+                        execString1 = b'INSERT INTO modlog (thing_id, mod, action, actionreason, action_utc, modactionid, subreddit_id, author_name, description) VALUES ' + args + b" ON CONFLICT (modactionid) DO UPDATE SET subreddit_id=excluded.subreddit_id, thing_id=excluded.thing_id, mod=excluded.mod, action=excluded.action, actionreason=excluded.actionreason, author_name=excluded.author_name, description=excluded.description WHERE modlog.modactionid=excluded.modactionid"
                         c.execute(execString1)
                         self.logger.info("Added {} items to modLogger database.".format(len(kwargs_list)))
+                        return len(kwargs_list)
         except Exception as e:
             self.logger.error("Unable to log items")
         

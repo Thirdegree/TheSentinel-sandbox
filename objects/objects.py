@@ -496,13 +496,11 @@ class Memcache(object):
         try:
             # Get keys in the Memcache
             memcachekeys = self.memstats.keys()
-            #self.logger.debug('Got memcache keys from memstats') #this is not helpful :D
 
             for key in memcachekeys:
                 if key.startswith(keyString):
                     # Get the item from the memcache
                     thing = self.memclient.get(key)
-                    self.logger.debug(u'Got key: {} from memcache'.format(key))
                     # Delete it from memcache
                     self.memclient.delete(key)
                     yield thing
@@ -512,7 +510,7 @@ class Memcache(object):
 
     def add(self, thing, keyString='tsb'):
         self.memclient.add("{}_{}".format(keyString, thing.fullname), thing)
-        self.logger.debug(u'Added {} to memcache queue from {}'.format(thing.fullname, thing.subreddit))
+        #self.logger.debug(u'Added {} to memcache queue from {}'.format(thing.fullname, thing.subreddit))
 
     def add_polo(self, botname='thesentinelbot'):
         self.memclient.set("{}_{}".format('polo', botname), botname)
