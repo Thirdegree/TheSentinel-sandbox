@@ -91,7 +91,9 @@ class SentinelInstance():
         if processed:
             self.logger.info('{} | Removed items: {}'.format(self.me, processed))
 
-    def canAction(self, thing):
+    def canAction(self, thing, thing_id=None):
+        if not thing:
+            thing = list(self.r.info([thing_id]))[0]
         try:
             if any([str(thing.subreddit).lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
                 self.logger.debug('Thing {} matches subs bot mods'.format(thing.fullname))
@@ -125,7 +127,7 @@ class SentinelInstance():
         for thread in threads:
             thread.start()
 
-
+            
 
     def checkInbox(self):
         for message in self.r.inbox.unread(limit=None):
