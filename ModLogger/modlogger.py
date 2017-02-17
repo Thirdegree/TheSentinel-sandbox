@@ -14,8 +14,12 @@ class ModLogger(object):
         return [i.lower() for i in self.db.get_subs_enabled()]
 
     @property
+    def subs_intersec(self):
+        return list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
+
+    @property
     def modLogMulti(self):
-        subs_intersec = list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
+        subs_intersec = self.subs_intersec
         try:
             return self.r.subreddit("+".join(subs_intersec))
         except TypeError:
@@ -57,7 +61,10 @@ class ModLogger(object):
         return arg_dicts
 
     def log(self, limit=100):
+        if (not limit):
+            self.logger.info("Force Modlog History started for {}".format(self.subs_intersec))
         arg_dicts = self.gather_items(limit)
-        self.db.log_items(arg_dicts)
-        if not limit:
-            self.r.redditor('thirdegree').message('force modlog history', 'Finished for {}'.format(self.subs))
+        logged = self.db.log_items(arg_dicts)
+        if (not limit) and self.subs_intersec:
+            self.r.redditor('thirdegree').message('force modlog history', 'Finished for {}, {} updated/inserted'.format(self.subs_intersec, logged))
+            self.logger.info("Force Modlog History complete for {}, {} updated/inserted".format(self.subs_intersec, logged))

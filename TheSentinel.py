@@ -22,8 +22,6 @@ from .Reddit import SentinelInstance
 from .exceptions import TooFrequent
 
 
-lock = threading.Lock()
-
 class TheSentinel(object):
     def __init__(self):
         youtube = YouTube()
@@ -69,24 +67,17 @@ class TheSentinel(object):
 
         self.last_mod_alert = None
 
+        
 
     def get_items(self):
         # returns (thing, [urls])
-        lock.acquire()
-        self.logger.debug('Aquired the lock for Memcache Generator')
         try:
             for item in self.cache.get_new():
-               	self.phone_home()
-               	if item:
-                    self.logger.debug(u'Returning from memcache: {}'.format(item.fullname if item else item)) 
+                if item:
+                    #self.logger.debug(u'Returning from memcache: {}'.format(item.fullname if item else item)) 
                     yield self.get_urls(item)
-            else:
-            	self.phone_home()
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
-        finally:
-            lock.release()
-            self.logger.debug('Released the Memcache Generator Lock')
 
     def process_webrequest(self, values_dict):
         values_dict = json.loads(values_dict)
@@ -103,7 +94,7 @@ class TheSentinel(object):
         if self.last_mod_alert:
             sincelast = datetime.now() - self.last_mod_alert
             if sincelast < timedelta(hours=1):
-	            raise TooFrequent(sincelast)
+                raise TooFrequent(sincelast)
         sent = True
         for sentinel, _ in self.sentinels:
             sent = sent and sentinel.messageSubreddits(title, body)
@@ -197,8 +188,11 @@ class TheSentinel(object):
 
     def isBlacklisted(self, subreddit, url):
         for i, k in self.processes.items():
-            if k.hasBlacklisted(subreddit, url):
-                return True
+            try:
+                if k.hasBlacklisted(subreddit, url):
+                    return True
+            except requests.exceptions.SSLError:
+                continue
         return False
 
     def isProcessed(self, subreddits):
@@ -343,7 +337,7 @@ class TheSentinel(object):
             self.logger.info(u'Adding to database: {} for sub r/{}'.format(i['thingid'], i['subreddit']))
             success = self.database.addBlacklist(i)
             if success:
-	            authors.append(i['media_author'])
+                authors.append(i['media_author'])
         return authors
 
 
@@ -359,7 +353,7 @@ class TheSentinel(object):
             self.logger.info(u'Removing from database: {} for sub r/{}'.format(thing.fullname if thing else 'WebRequest', i['subreddit']))
             success = self.database.removeBlacklist(**i)
             if success:
-	            authors.append(i['media_author'])
+                authors.append(i['media_author'])
 
         return authors
 
@@ -367,24 +361,20 @@ class TheSentinel(object):
         for i in self.cache.get_new('marco_thesentinelbot'):
             self.cache.add_polo()
 
-
     def main(self):
         self.startThreads()
         self.writeSubs()
         running = True
         while running:
-            
             try:
-                #self.logger.debug('Cycling..')
-                items = self.get_items()
-                for item in items:
+                for item in self.get_items():
                     try:
                         level, thing = self.needsRemoval(item)
                     except requests.exceptions.HTTPError:
                         continue
                     if level == 2:
                         self.remove(thing)
-                #time.sleep(10) why lol
+                #time.sleep(10) #why lol
 
             except KeyboardInterrupt:
                 self.logger.warning(u"Keyboard Interrrupt - exiting")
@@ -393,7 +383,7 @@ class TheSentinel(object):
                 self.logger.error('General Exception - Connection Error - Sleeping 30')
                 time.sleep(30)
             except:
-                self.logger.critical(u"General exception - Sleeping 30")
+                self.logger.error(u"General exception - Sleeping 30")
                 time.sleep(30)
 
         else:
