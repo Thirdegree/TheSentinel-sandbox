@@ -9,7 +9,6 @@ class Websync(object):
         self.db = ModloggerDB()
         self.logger = getSentinelLogger()
 
-        self.sentinels = [i[0] for i in masterClass.sentinels] #don't care about their queues
         self.masterClass = masterClass
         self.synccalls = {
             'tsbaccept': "http://beta.layer7.solutions/admin/resync?type=tsbaccept&subreddit={subreddit}",
@@ -34,19 +33,8 @@ class Websync(object):
             call = True
             try:
                 action = item['action']
-                if action == 'setpermissions':
-                    for sentinel in self.sentinels:
-                        if sentinel.canAction(None, thing_id=item['thingid']):
-                            break
-                    new_state = sentinel.get_permissions(item['mod'], item['subreddit'])
-                    if new_state:
-                        item['new_state'] = ','.join(new_state)
-                    else:
-                        continue
-                    if item['new_state'] == None:
-                        call = False
-                if call:
-                    requests.get(self.synccalls[item[action]].format(item))
+
+                requests.get(self.synccalls[action].format(item))
             except KeyError:
                 pass
             finally:

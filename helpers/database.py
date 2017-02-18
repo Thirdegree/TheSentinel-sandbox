@@ -383,7 +383,7 @@ class ModloggerDB(Database):
     def get_unprocessed(self):
         with self.modlogger_conn as conn:
             with conn.cursor() as c:
-                c.execute('SELECT thing_id, mod, action, subreddit_name=(select subreddit_name from subreddit where subreddit.id=modlog.subreddit_id) from modlog where processed=false order by thing_id desc limit 1000')
+                c.execute('SELECT thing_id, author_name, action, (select subreddit_name from subreddit where subreddit.id=modlog.subreddit_id), description from modlog where processed=false')
                 fetched = c.fetchall()
 
         return [
@@ -392,6 +392,7 @@ class ModloggerDB(Database):
                 'mod': x[1],
                 'action': x[2],
                 'subreddit': x[3],
+                'new_state': x[4],
             } for x in fetched]
 
     def mark_processed(self, thingids):
