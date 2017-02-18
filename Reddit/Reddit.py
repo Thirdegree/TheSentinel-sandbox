@@ -5,6 +5,7 @@ from ..helpers import getSentinelLogger, SlackNotifier
 from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..exceptions import TooFrequent
+import prawcore.exceptions
 
 
 class SentinelInstance():
@@ -91,24 +92,30 @@ class SentinelInstance():
         if processed:
             self.logger.info('{} | Removed items: {}'.format(self.me, processed))
 
-    def get_permissions(self, mod, subreddit): #both strings
-        raw_json = self.r.request('GET', 'r/{}/about/moderators'.format(subreddit))
-        for e in raw_json['data']['children']:
-            if e['name'] == mod:
-                return e['mod_permissions']
-        return None
+    def get_permissions(self, mod_name, subreddit): #both strings
+        perms = list(self.r.subreddit(subreddit).moderator())
+        for mod in perms:
+            if str(mod) == mod_name:
+                self.logger.debug("{} | Moderator {} perimissions {}".format(self.me, mod, mod.mod_permissions))
+                return mod.mod_permissions
 
 
-    def canAction(self, thing, thing_id=None):
-        if not thing:
-            thing = list(self.r.info([thing_id]))[0]
+    def canAction(self, thing, subreddit=None):
+        
         try:
+            if not thing:
+                if any([subreddit.lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
+                    self.logger.debug('Subreddit {} matches subs bot mods'.format(subreddit))
+                    return True
+                return False
             if any([str(thing.subreddit).lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
                 self.logger.debug('Thing {} matches subs bot mods'.format(thing.fullname))
                 return thing
             return False
-        except praw.exceptions.APIException:
+        except prawcore.exceptions.Forbidden:
             self.logger.debug('PRAW Forbidden Error')
+            return False
+        except IndexError:
             return False
 
     def forceModlogHistory(self, body):
