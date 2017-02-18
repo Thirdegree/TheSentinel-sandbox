@@ -18,21 +18,35 @@ class Websync(object):
             'removemoderator': "http://beta.layer7.solutions/admin/resync?type=removemoderator&subreddit={subreddit}&moderator={mod}",
             'setpermissions': "http://beta.layer7.solutions/admin/resync?type=setpermissions&subreddit={subreddit}&moderator={mod}&new_state={new_state}",}
 
+        self.logger.info("Websync Thread Started")
+
     def get_unprocessed(self):
         return self.db.get_unprocessed()
 
+    def ping_accept(self, subreddit):
+        requests.get(self.synccalls['tsbaccept'].format(subreddit=subreddit))
+
     def process(self, unprocessed):
+        if unprocessed:
+            self.logger.info("{} | Processing {} items".format('Websync', len(unprocessed)))
         done = []
         for item in unprocessed:
+            call = True
             try:
                 action = item['action']
                 if action == 'setpermissions':
                     for sentinel in self.sentinels:
-                        if sentinel.canAction(item['thingid']):
+                        if sentinel.canAction(None, thing_id=item['thingid']):
                             break
-
-                    item['new_state'] = sentinel.get_permissions(item['mod'], item['subreddit'])
-                requests.get(self.synccalls[item[action]].format(item))
+                    new_state = sentinel.get_permissions(item['mod'], item['subreddit'])
+                    if new_state:
+                        item['new_state'] = ','.join(new_state)
+                    else:
+                        continue
+                    if item['new_state'] == None:
+                        call = False
+                if call:
+                    requests.get(self.synccalls[item[action]].format(item))
             except KeyError:
                 pass
             finally:

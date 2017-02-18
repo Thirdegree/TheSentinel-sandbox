@@ -91,6 +91,14 @@ class SentinelInstance():
         if processed:
             self.logger.info('{} | Removed items: {}'.format(self.me, processed))
 
+    def get_permissions(self, mod, subreddit): #both strings
+        raw_json = self.r.request('GET', 'r/{}/about/moderators'.format(subreddit))
+        for e in raw_json['data']['children']:
+            if e['name'] == mod:
+                return e['mod_permissions']
+        return None
+
+
     def canAction(self, thing, thing_id=None):
         if not thing:
             thing = list(self.r.info([thing_id]))[0]
@@ -127,7 +135,7 @@ class SentinelInstance():
         for thread in threads:
             thread.start()
 
-            
+
 
     def checkInbox(self):
         for message in self.r.inbox.unread(limit=None):
@@ -138,6 +146,7 @@ class SentinelInstance():
                 self.acceptModInvite(message)
                 self.forceModlogHistory("r/" + str(message.subreddit))
                 self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
+                self.masterClass.websync.ping_accept(str(message.subreddit))
                 continue
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
