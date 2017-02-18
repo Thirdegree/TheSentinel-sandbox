@@ -15,7 +15,8 @@ class ModLogger(object):
 
     @property
     def subs_intersec(self):
-        return list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
+        #return list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
+        return self.subs
 
     @property
     def modLogMulti(self):
@@ -61,7 +62,7 @@ class ModLogger(object):
         return arg_dicts
 
     def log(self, limit=100):
-        if (not limit):
+        if (not limit) and self.subs_intersec:
             self.logger.info("Force Modlog History started for {}".format(self.subs_intersec))
         arg_dicts = self.gather_items(limit)
         logged = self.db.log_items(arg_dicts)
