@@ -198,18 +198,18 @@ class SentinelInstance():
         self.logger.info('{} | Getting Content'.format(self.me))
         self.logger.debug('{} | Getting Reddit New'.format(self.me))
         for post in self.modMulti.new(limit=200):
-            if not post.fullname in self.done:# and not self.masterClass.isProcessed(post):
+            if not post.fullname in self.masterClass.done:# and not self.masterClass.isProcessed(post):
                 self.logger.debug("{} | Added Post to toAdd - {}".format(self.me, post.fullname))
                 toAdd.append(post)
-                self.done.add(post.fullname)
+                self.masterClass.done.add(post.fullname)
         self.logger.debug('{} | Done w/ GetNew | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Comments'.format(self.me))
         for comment in self.modMulti.comments(limit=300):
-            if not comment.fullname in self.done:# and not self.masterClass.isProcessed(comment):
+            if not comment.fullname in self.masterClass.done:# and not self.masterClass.isProcessed(comment):
                 self.logger.debug("{} | Added comment to toAdd - {}".format(self.me, comment.fullname))
                 toAdd.append(comment)
-                self.done.add(comment.fullname)
+                self.masterClass.done.add(comment.fullname)
         self.logger.debug('{} | Done w/ GetComments | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Edited'.format(self.me))
@@ -224,10 +224,10 @@ class SentinelInstance():
 
         self.logger.debug('{} | Getting Reddit Spam'.format(self.me))
         for spam in self.modMulti.mod.spam(limit=200):
-            if not spam.fullname in self.done:# and not self.masterClass.isProcessed(spam):
+            if not spam.fullname in self.masterClass.done:# and not self.masterClass.isProcessed(spam):
                 self.logger.debug("{} | Added spam to toAdd - {}".format(self.me, spam.fullname))                
                 toAdd.append(spam)
-                self.done.add(spam.fullname)
+                self.masterClass.done.add(spam.fullname)
         self.logger.debug('{} | Done w/ GetSpam | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
         
         if (toAdd + editlist):
@@ -332,7 +332,7 @@ class SentinelInstance():
         while not self.masterClass.killThreads:
             #self.logger.debug('{} | Cycling..'.format(self.me.name))
             try:
-                self.done = set(self.masterClass.isProcessed(self.subsModded))
+                self.masterClass.done = set(self.masterClass.isProcessed(self.subsModded))
                 #self.modMulti = self.r.subreddit('mod')
 
                 self.checkContent()

@@ -67,6 +67,7 @@ class TheSentinel(object):
         self.blacklistSub = 'TheSentinelBot'
 
         self.last_mod_alert = None
+        self.done = set()
 
         
 
