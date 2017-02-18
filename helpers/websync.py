@@ -35,6 +35,7 @@ class Websync(object):
                 action = item['action']
 
                 requests.get(self.synccalls[action].format(item))
+                self.logger.info("{} | Processed {} action".format('Websync', action))
             except KeyError:
                 pass
             finally:
