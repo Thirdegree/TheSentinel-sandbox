@@ -178,6 +178,7 @@ class SentinelInstance():
                 self.subsModded = [i for i in self.r.user.moderator_subreddits(limit=None)]
                 self.masterClass.writeSubs()
                 self.logger.info("{} | Now mods {} users.".format(self.me, self.subCount))
+                self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
                 continue
 
 

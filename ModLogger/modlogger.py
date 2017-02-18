@@ -5,6 +5,7 @@ from datetime import datetime
 class ModLogger(object):
     def __init__(self, r, subs): #subs is a list of strings
         self.r = r
+        self.me = self.r.user.me()
         self.logger = getSentinelLogger()
         self.db = ModloggerDB()
         self.subs = subs
@@ -61,11 +62,15 @@ class ModLogger(object):
 
         return arg_dicts
 
+    def __str__(self):
+        return str(self.me) + " Modlogger"
+
     def log(self, limit=100):
         if (not limit) and self.subs_intersec:
-            self.logger.info("Force Modlog History started for {}".format(self.subs_intersec))
+            self.logger.info("{} | Force Modlog History started for {}".format(self, self.subs_intersec))
         arg_dicts = self.gather_items(limit)
+        if arg_dicts:
+            self.logger.info("{} | Adding {} items to modlog".format(self, len(arg_dicts)))
         logged = self.db.log_items(arg_dicts)
         if (not limit) and self.subs_intersec:
-            self.r.redditor('thirdegree').message('force modlog history', 'Finished for {}, {} updated/inserted'.format(self.subs_intersec, logged))
-            self.logger.info("Force Modlog History complete for {}, {} updated/inserted".format(self.subs_intersec, logged))
+            self.logger.info("{} | Force Modlog History complete for {}, {} updated/inserted".format(self, self.subs_intersec, logged))

@@ -367,7 +367,7 @@ class ModloggerDB(Database):
 
                         execString1 = b'INSERT INTO modlog (thing_id, mod, action, actionreason, action_utc, modactionid, subreddit_id, author_name, description) VALUES ' + args + b" ON CONFLICT (modactionid) DO UPDATE SET subreddit_id=excluded.subreddit_id, thing_id=excluded.thing_id, mod=excluded.mod, action=excluded.action, actionreason=excluded.actionreason, author_name=excluded.author_name, description=excluded.description WHERE modlog.modactionid=excluded.modactionid"
                         c.execute(execString1)
-                        self.logger.info("Added {} items to modLogger database.".format(len(kwargs_list)))
+                        self.logger.debug("Added {} items to modLogger database.".format(len(kwargs_list)))
                         return len(kwargs_list)
         except Exception as e:
             self.logger.error("Unable to log items")
@@ -383,22 +383,24 @@ class ModloggerDB(Database):
     def get_unprocessed(self):
         with self.modlogger_conn as conn:
             with conn.cursor() as c:
-                c.execute('SELECT thing_id, author_name, action, (select subreddit_name from subreddit where subreddit.id=modlog.subreddit_id), description from modlog where processed=false')
+                c.execute('SELECT thing_id, author_name, action, (select subreddit_name from subreddit where subreddit.id=modlog.subreddit_id), description, modactionid, mod from modlog where processed=false order by thing_id limit 10000') #not desc
                 fetched = c.fetchall()
 
         return [
             {
                 'thingid': x[0],
-                'mod': x[1],
+                'target': x[1],
                 'action': x[2],
                 'subreddit': x[3],
                 'new_state': x[4],
+                'modactionid': x[5],
+                'mod': x[6]
             } for x in fetched]
 
-    def mark_processed(self, thingids):
+    def mark_processed(self, modactionids):
         with self.modlogger_conn as conn:
             with conn.cursor() as c:
-                c.execute('UPDATE modlog SET processed=true where thingid=ANY(%s)', (thingids,))
+                c.execute('UPDATE modlog SET processed=true where modactionid=ANY(%s)', (modactionids,))
 
 class oAuthDatabase(Database):
     def __init__(self):
