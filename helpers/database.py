@@ -127,7 +127,7 @@ class Blacklist(Database):
     def isProcessed(self, subreddits=None):
         with self.blacklist_conn as conn:
             with conn.cursor() as c:
-                statement = b"SELECT thing_id FROM sentinel_actions ORDER BY id DESC LIMIT 10000"
+                statement = b"SELECT thing_id FROM sentinel_actions ORDER BY id DESC LIMIT 500000"
                 c.execute(statement)
                 fetched = c.fetchall()
 
