@@ -429,7 +429,7 @@ class ShadowbanDatabase(Database):
     def get_shadowbanned(self):
         with self.shadowban_conn as conn:
             with conn.cursor() as c:
-                statement = "SELECT subreddit.subreddit_name, shadowbanned.redditor from shadowbanned, subreddit where subreddit_id=subreddit.id"
+                statement = "SELECT subreddit.subreddit_name, botban.username from botban, subreddit where subreddit_id=subreddit.id"
                 c.execute(statement)
                 fetched = c.fetchall()
         shadowbanned = {}
@@ -441,14 +441,23 @@ class ShadowbanDatabase(Database):
                     shadowbanned[subreddit] = set([username])
         return shadowbanned
 
-    def add_shadowban(self, username, subreddit):
+    def add_shadowban(self, kwargs):
         #incomplete
         with self.shadowban_conn as conn:
             with conn.cursor() as c:
-                c.execute("INSERT INTO shadowbanned (")
+                args = []
+                for sub in kwargs['subreddits']:
+                    args.append(c.mogrify("((SELECT id from subreddit where subreddit_name=%(sub)s), %(username)s, %(bannedby)s, %(bannedon)s)"), kwargs, sub=sub)
+                statement = b"INSERT INTO botban (subreddit_id, username, bannedby, bannedon) VALUES " + b','.join(args)
+                c.execute(statement)
+        return True
 
-    def remove_shadowban(self, username, subreddit):
-        pass
+    def remove_shadowban(self, kwargs):
+        with self.shadowban_conn as conn:
+            with conn.cursor() as c:
+                statement = "DELETE FROM botban where subreddit_id in (SELECT id from subreddit where subreddit_name=ANY(%(subreddits)s)) AND username=%(username)s"
+                c.execute(statement, kwargs)
+        return True
 
 class TheTraveler(NSA):
     def __init__(self):

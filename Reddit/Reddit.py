@@ -1,4 +1,5 @@
 import praw, re, time, requests, sys, threading
+from datetime import datetime
 from collections import deque
 from ..helpers.responses import *
 from ..helpers import getSentinelLogger, SlackNotifier, ShadowbanDatabase
@@ -24,7 +25,7 @@ class SentinelInstance():
         self.logger.info(u"{} | Modding {} users in {}".format(self.me, self.subCount, [str(x) for x in self.subsModded]))
         self.modMulti = self.r.subreddit('mod')
         self.globalBlacklistSubs = ['YT_Killer','TheSentinelBot']
-        self.subextractor = re.compile("r\/(.*)\b")
+        self.subextractor = re.compile("r\/(.*)")
 
 
         #this is fucking awful. it's just a list of moderators of the above two subs.
@@ -172,6 +173,20 @@ class SentinelInstance():
                 except KeyError:
                     pass
 
+            if "add to user shadowban" in message.subject.lower():
+                try:
+                    subreddits, user = self.add_user_shadowban(message):
+                    message.reply("User {} shadowbaned for subs {}".format(user, subreddits))
+                except TypeError:
+                    message.reply("User shadowban failed")
+
+            if "remove from user shadowban" in message.subject.lower():
+                try:
+                    subreddits, user = self.remove_user_shadowban(message):
+                    message.reply("User {} shadowban removed for subs {}".format(user, subreddits))
+                except TypeError:
+                    message.reply("User shadowban failed")
+
             if "add to blacklist" in message.subject.lower():
                 self.addBlacklist(message)
                 continue
@@ -254,6 +269,40 @@ class SentinelInstance():
             return False
         if str(thing.author) in self.shadowbans[str(thing.subreddit)]:
             return True
+        return False
+
+    def add_user_shadowban(self, thing):
+        regex_subreddits = "r/(\w*)"
+        regex_username = "u/(\w*)"
+        subs = re.findall(regex_subreddits, thing.body)
+        user = re.search(regex_username, thing.subject)
+        if not user or not subs:
+            return False
+        args = {
+            'subreddits': subs,
+            'username': user.group(1),
+            'bannedby': str(thing.author),
+            'bannedon': datetime.utcfromtimestamp(thing.created_utc),
+        }
+        if self.shadowban_db.add_shadowban(args):
+            return (args['subreddits'], args['username'])
+        return False
+
+    def add_user_shadowban(self, thing):
+        regex_subreddits = "r/(\w*)"
+        regex_username = "u/(\w*)"
+        subs = re.findall(regex_subreddits, thing.body)
+        user = re.search(regex_username, thing.subject)
+        if not user or not subs:
+            return False
+        args = {
+            'subreddits': subs,
+            'username': user.group(1),
+            'bannedby': str(thing.author),
+            'bannedon': datetime.utcfromtimestamp(thing.created_utc),
+        }
+        if self.shadowban_db.remove_shadowban(args):
+            return (args['subreddits'], args['username'])
         return False
 
     def addBlacklist(self, thing):
