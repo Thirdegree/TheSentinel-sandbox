@@ -231,7 +231,7 @@ class TheSentinel(object):
                 'url': thing.url if type(thing) == praw.models.Submission else link,
                 'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
                 'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
-                'body': (thing.body if type(thing) != praw.models.Submission else thing.selftext_html),
+                'body': (thing.body if type(thing) != praw.models.Submission else thing.selftext),
                 }
             try:
                 data = self.getInfo(thing)
