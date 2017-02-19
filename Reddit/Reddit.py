@@ -175,14 +175,14 @@ class SentinelInstance():
 
             if "add to user shadowban" in message.subject.lower():
                 try:
-                    subreddits, user = self.add_user_shadowban(message):
+                    subreddits, user = self.add_user_shadowban(message)
                     message.reply("User {} shadowbaned for subs {}".format(user, subreddits))
                 except TypeError:
                     message.reply("User shadowban failed")
 
             if "remove from user shadowban" in message.subject.lower():
                 try:
-                    subreddits, user = self.remove_user_shadowban(message):
+                    subreddits, user = self.remove_user_shadowban(message)
                     message.reply("User {} shadowban removed for subs {}".format(user, subreddits))
                 except TypeError:
                     message.reply("User shadowban failed")
@@ -288,7 +288,7 @@ class SentinelInstance():
             return (args['subreddits'], args['username'])
         return False
 
-    def add_user_shadowban(self, thing):
+    def remove_user_shadowban(self, thing):
         regex_subreddits = "r/(\w*)"
         regex_username = "u/(\w*)"
         subs = re.findall(regex_subreddits, thing.body)
