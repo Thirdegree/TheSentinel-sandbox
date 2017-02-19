@@ -418,6 +418,38 @@ class oAuthDatabase(Database):
                 self.logger.debug(u'Retreived oAuth Credentials for Username: {}'.format(id))
                 return c.fetchall()
 
+class ShadowbanDatabase(Database):
+    def __init__(self):
+        super(ShadowbanDatabase, self).__init__()
+        self.shadowban_conn = self.get_conn()
+        with self.shadowban_conn as conn:
+            with conn.cursor() as c:
+                c.execute("SET CLIENT_ENCODING TO 'UTF8';")
+
+    def get_shadowbanned(self):
+        with self.shadowban_conn as conn:
+            with conn.cursor() as c:
+                statement = "SELECT subreddit.subreddit_name, shadowbanned.redditor from shadowbanned, subreddit where subreddit_id=subreddit.id"
+                c.execute(statement)
+                fetched = c.fetchall()
+        shadowbanned = {}
+        if fetched:
+            for subreddit, username in fetched:
+                if subreddit in shadowbanned:
+                    shadowbanned[subreddit].add(username)
+                else:
+                    shadowbanned[subreddit] = set([username])
+        return shadowbanned
+
+    def add_shadowban(self, username, subreddit):
+        #incomplete
+        with self.shadowban_conn as conn:
+            with conn.cursor() as c:
+                c.execute("INSERT INTO shadowbanned (")
+
+    def remove_shadowban(self, username, subreddit):
+        pass
+
 class TheTraveler(NSA):
     def __init__(self):
         super(TheTraveler, self).__init__()

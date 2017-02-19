@@ -1,7 +1,7 @@
 import praw, re, time, requests, sys, threading
 from collections import deque
 from ..helpers.responses import *
-from ..helpers import getSentinelLogger, SlackNotifier
+from ..helpers import getSentinelLogger, SlackNotifier, ShadowbanDatabase
 from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..exceptions import TooFrequent
@@ -37,6 +37,7 @@ class SentinelInstance():
         self.notifier = SlackNotifier()
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
         self.edited_done = deque()
+        self.shadowban_db = ShadowbanDatabase()
 
         self.can_global_action = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
 
@@ -242,8 +243,18 @@ class SentinelInstance():
             self.logger.debug("Adding {} items to cache".format(len(toAdd+editlist)))
             for i in toAdd + editlist:
                 self.logger.debug("Adding {} to cache".format(i.fullname))
-                self.cache.add(i)
+                if self.user_shadowbanned(i):
+                    self.removalQueue.put(i)
+                else:
+                    self.cache.add(i)
         self.masterClass.markProcessed(toAdd)
+
+    def user_shadowbanned(self, thing):
+        if not str(thing.subreddit) in self.shadowbans:
+            return False
+        if str(thing.author) in self.shadowbans[str(thing.subreddit)]:
+            return True
+        return False
 
     def addBlacklist(self, thing):
         sub_string = re.search(self.subextractor, thing.subject)
@@ -341,6 +352,7 @@ class SentinelInstance():
             #self.logger.debug('{} | Cycling..'.format(self.me.name))
             try:
                 self.masterClass.done = set(self.masterClass.isProcessed(self.subsModded))
+                self.shadowbans = self.shadowban_db.get_shadowbanned()
                 #self.modMulti = self.r.subreddit('mod')
 
                 self.checkContent()
