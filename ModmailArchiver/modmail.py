@@ -46,7 +46,7 @@ class ModmailArchiver(object):
                         "subject": mail.subject,
                         "body": mail.body,
                         "parent_thing_id": mail.parent_id,
-                        "subreddit": mail.subreddit
+                        "subreddit": str(mail.subreddit)
                     }
                     arg_dicts.append(arg_dict)
                 try:
