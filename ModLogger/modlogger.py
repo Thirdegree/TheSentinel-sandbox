@@ -65,7 +65,6 @@ class ModLogger(object):
     def __str__(self):
         return  "Modlogger ({})".format(self.me)
 
-
     def log(self, limit=100, message=None):
         if (not limit):
             self.logger.info("Force Modlog History started for {}".format(self.subs_intersec))

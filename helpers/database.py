@@ -389,10 +389,7 @@ class ModloggerDB(Database):
         with self.modlogger_conn as conn:
             with conn.cursor() as c:
                 c.execute('UPDATE modlog SET processed=true where modactionid=ANY(%s)', (modactionids,))
-<<<<<<< HEAD
-=======
 
->>>>>>> master
 
 class oAuthDatabase(Database):
     def __init__(self):
