@@ -41,7 +41,7 @@ class ModmailArchiver(object):
                         "thing_id": mail.fullname,
                         "message_root_thing_id": mail.first_message_name,
                         "message_from": str(mail.author),
-                        "message_to": mail.dest.replace("#", "r/") if mail.dest.startswith("#") else mail.dest,
+                        "message_to": str(mail.dest).replace("#", "r/") if str(mail.dest).startswith("#") else str(mail.dest)
                         "created_utc": datetime.utcfromtimestamp(mail.created_utc),
                         "subject": mail.subject,
                         "body": mail.body,
