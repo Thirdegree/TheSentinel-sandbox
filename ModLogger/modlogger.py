@@ -60,11 +60,11 @@ class ModLogger(object):
 
         return arg_dicts
 
-    def log(self, limit=100):
+    def log(self, limit=100, message=None):
         if (not limit):
             self.logger.info("Force Modlog History started for {}".format(self.subs_intersec))
         arg_dicts = self.gather_items(limit)
         logged = self.db.log_items(arg_dicts)
         if (not limit) and self.subs_intersec:
-            self.r.redditor('thirdegree').message('force modlog history', 'Finished for {}, {} updated/inserted'.format(self.subs_intersec, logged))
+            message.reply('Finished for {}, {} updated/inserted'.format(self.subs_intersec, logged))
             self.logger.info("Force Modlog History complete for {}, {} updated/inserted".format(self.subs_intersec, logged))
