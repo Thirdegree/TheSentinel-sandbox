@@ -25,7 +25,7 @@ class SlackNotifier(object):
 
         @retry(stop_max_attempt_number=3)
         def send_message_closure(message):
-            payload = {"channel": channel, "username": "TheSentinelBot", "text": u"*Attn:* *Author:* {author} | *ChanAuth:* {media_author} | *Link:* {permalink} | *YTK Data:* http://layer7.solutions/ytkiller.php?YTChannelID={media_channel_id}&sub={subreddit}".format(**message)}
+            payload = {"channel": channel, "username": "TheSentinelBot", "text": u"*Attention:* _A new blacklisted item has been removed._ \n*Channel Author:* {media_author} \n*Reddit Author:* {author} \n*Subreddit:* {subreddit} \n*Reddit Link:* {permalink} \n*Report Data:* http://beta.layer7.solutions/sentinel/reports/#subject={media_channel_id}".format(**message)}
 
             headers = {'content-type': 'application/json'}
 

@@ -106,7 +106,7 @@ class APIProcess(object):
             raise KeyError("No match found - %s" % url)
 
     def getInformation(self, url):
-        self.logger.debug(u'Getting Infomration. URL: {}'.format(url))
+        self.logger.debug(u'Getting Information. URL: {}'.format(url))
         try:
             key, data = self._getData(url)
         except KeyError:

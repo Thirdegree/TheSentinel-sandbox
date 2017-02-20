@@ -7,11 +7,9 @@ from .SentinelLogger import getSentinelLogger
 Config = configparser.ConfigParser()
 Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
 
-
 defaultun = Config.get('Database', 'Username')
 defaultpass = Config.get('Database', 'Password')
 defaultdbnam = 'Zion'
-
 
 class Database(object):
     def __init__(self, username=defaultun, password=defaultpass):
@@ -29,7 +27,6 @@ class Database(object):
         return conn
 
 
-
 class Blacklist(Database):
     def __init__(self):
         super(Blacklist, self).__init__()
@@ -37,9 +34,6 @@ class Blacklist(Database):
         with self.blacklist_conn as conn:
             with conn.cursor() as c:
                 c.execute("SET CLIENT_ENCODING TO 'UTF8';")
-
-
-
 
     def isBlacklisted(self, subreddit, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
         if (not media_author) and (not media_channel_id):
@@ -78,7 +72,6 @@ class Blacklist(Database):
         self.logger.debug(u'Channel not blacklisted. Sub: {} | ChanID: {} | MediaAuth: {}'.format(subreddit, media_channel_id, media_author))
         return False
         
-
     def addBlacklist(self, kwargs):
         if "media_channel_id" not in kwargs:
             self.logger.warning('No channel_id provided')
@@ -210,8 +203,6 @@ class Blacklist(Database):
             with conn.cursor() as c:
                 c.execute("UPDATE sentinel_actions SET removed=true, action_utc=now() where thing_id=%s and removed=false", (thingid,))
 
-
-
     """
     def next_value(self):
         with self.conn:
@@ -220,7 +211,6 @@ class Blacklist(Database):
                 result = c.fetchone()
         return result[0]+1
     """
-
 
 
 class SlackHooks(Database):
@@ -265,6 +255,7 @@ class SlackHooks(Database):
                     self.logger.warning(u'Please provide either a Subreddit or a Slack Team, not both')
                     raise RuntimeError("Please provide either a Subreddit or a Slack Team, not both")
 
+
 class NSA(Database):
     def __init__(self):
         super(NSA, self).__init__()
@@ -272,7 +263,6 @@ class NSA(Database):
         with self.nsa_conn as conn:
             with conn.cursor() as c:
                 c.execute("SET CLIENT_ENCODING TO 'UTF8';")
-
 
     def addUsers(self, kwargs_list):
         with self.nsa_conn as conn:
@@ -296,6 +286,7 @@ class NSA(Database):
         self.logger.debug("Fetched {} users".format(len(fetched)))
         return [i[0] for i in fetched] # list of tuples -> list of thingids
 
+
 class Utility(Database):
     def __init__(self):
         super(Utility, self).__init__()
@@ -317,7 +308,6 @@ class Utility(Database):
                     c.execute(updateString, (botname, subscribers, subreddit))
                 else:
                     c.execute(execString1, (subreddit, True, botname, subscribers))
-
 
     def remove_subreddit(self, subreddit):
         execString1 = "UPDATE subreddit SET sentinel_enabled=FALSE, dirtbag_enabled=FALSE WHERE subreddit_name=%s"
@@ -372,8 +362,6 @@ class ModloggerDB(Database):
         except Exception as e:
             self.logger.error("Unable to log items")
         
-
-
     def is_logged(self, modActionID):
         with self.modlogger_conn as conn:
             with conn.cursor('is_logged') as c:
@@ -401,6 +389,10 @@ class ModloggerDB(Database):
         with self.modlogger_conn as conn:
             with conn.cursor() as c:
                 c.execute('UPDATE modlog SET processed=true where modactionid=ANY(%s)', (modactionids,))
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
 
 class oAuthDatabase(Database):
     def __init__(self):
@@ -410,13 +402,55 @@ class oAuthDatabase(Database):
             with conn.cursor() as c:
                 c.execute("SET CLIENT_ENCODING TO 'UTF8';")
 
-
     def get_accounts(self, id):
         with self.oAuth_conn as conn:
             with conn.cursor('get_accounts') as c:
                 c.execute("SELECT app_id, app_secret, username, password FROM oauth_data WHERE agent_of=%s", (id,))
                 self.logger.debug(u'Retreived oAuth Credentials for Username: {}'.format(id))
                 return c.fetchall()
+
+
+class ShadowbanDatabase(Database):
+    def __init__(self):
+        super(ShadowbanDatabase, self).__init__()
+        self.shadowban_conn = self.get_conn()
+        with self.shadowban_conn as conn:
+            with conn.cursor() as c:
+                c.execute("SET CLIENT_ENCODING TO 'UTF8';")
+
+    def get_shadowbanned(self):
+        with self.shadowban_conn as conn:
+            with conn.cursor() as c:
+                statement = "SELECT subreddit.subreddit_name, botban.username from botban, subreddit where subreddit_id=subreddit.id and subreddit.botban_active=true"
+                c.execute(statement)
+                fetched = c.fetchall()
+        shadowbanned = {}
+        if fetched:
+            for subreddit, username in fetched:
+                if subreddit in shadowbanned:
+                    shadowbanned[subreddit].add(username)
+                else:
+                    shadowbanned[subreddit] = set([username])
+        return shadowbanned
+
+    def add_shadowban(self, kwargs):
+        #incomplete
+        with self.shadowban_conn as conn:
+            with conn.cursor() as c:
+                args = []
+                for sub in kwargs['subreddits']:
+                    args.append(c.mogrify("((SELECT id from subreddit where subreddit_name=%(sub)s), %(username)s, %(bannedby)s, %(bannedon)s)"), kwargs, sub=sub)
+                statement = b"INSERT INTO botban (subreddit_id, username, bannedby, bannedon) VALUES " + b','.join(args)
+                c.execute(statement)
+        return True
+
+    def remove_shadowban(self, kwargs):
+        with self.shadowban_conn as conn:
+            with conn.cursor() as c:
+                statement = "DELETE FROM botban where subreddit_id in (SELECT id from subreddit where subreddit_name=ANY(%(subreddits)s)) AND username=%(username)s"
+                c.execute(statement, kwargs)
+        return True
+
 
 class TheTraveler(NSA):
     def __init__(self):
@@ -426,4 +460,44 @@ class TheTraveler(NSA):
 class Zion(SlackHooks, Blacklist):
     def __init__(self):
         super(Zion, self).__init__()
+
+
+class ModmailArchiverDB(Database):
+    def __init__(self):
+        super(ModmailArchiverDB, self).__init__()
+        self.modmail_conn = self.get_conn()
+        with self.modmail_conn as conn:
+            with conn.cursor() as c:
+                c.execute("SET CLIENT_ENCODING TO 'UTF8';")
+
+    def get_subs_enabled(self):
+        execString1 = "SELECT subreddit_name FROM subreddit WHERE modmail_enabled=true"
+        with self.modmail_conn as conn:
+            with conn.cursor('get_subs_enabled') as c:
+
+                c.execute(execString1)
+                fetched = c.fetchall()
+        if fetched:
+            return [i[0] for i in fetched]
+        return []
+
+    def log_items(self, kwargs_list):
+        try:
+            with self.modmail_conn as conn:
+                with conn.cursor() as c:
+                    if kwargs_list:
+                        args = b",".join([c.mogrify("(%(thing_id)s, %(message_root_thing_id)s, %(message_from)s, %(message_to)s, %(created_utc)s, %(subject)s, %(body)s, %(parent_thing_id)s, (SELECT id FROM subreddit WHERE subreddit_name=%(subreddit)s))", x) for x in kwargs_list])
+
+                        execString1 = b'INSERT INTO modmail (thing_id, message_root_thing_id, message_from, message_to, created_utc, subject, body, parent_thing_id, subreddit_id) VALUES ' + args + b" ON CONFLICT (thing_id) DO UPDATE SET subreddit_id=excluded.subreddit_id, message_root_thing_id=excluded.message_root_thing_id, message_from=excluded.message_from, message_to=excluded.message_to, created_utc=excluded.created_utc, subject=excluded.subject, body=excluded.body, parent_thing_id=excluded.parent_thing_id WHERE modmail.thing_id=excluded.thing_id"
+                        c.execute(execString1)
+                        self.logger.debug("Added {} items to Mod Mail database.".format(len(kwargs_list)))
+                        return len(kwargs_list)
+        except Exception as e:
+            self.logger.error("Unable to log Mod Mail items")
+
+    def is_logged(self, thing_id):
+        with self.modmail_conn as conn:
+            with conn.cursor('is_logged') as c:
+                c.execute('SELECT * FROM modmail WHERE thing_id=%s', (thing_id,))
+                return bool(c.fetchone())
 
