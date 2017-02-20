@@ -106,6 +106,10 @@ class TheSentinel(object):
         for sentinel, _ in self.sentinels:
             sentinel.forceModlogHistory(body)
 
+    def forceModMailHistory(self, body):
+        for sentinel, _ in self.sentinels:
+            sentinel.forceModMailHistory(body)
+
     def writeSubs(self):
         subs = []
         for sentinel, _ in self.sentinels:
