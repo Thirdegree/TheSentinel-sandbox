@@ -144,7 +144,7 @@ class SentinelInstance():
         modmailArchiver = ModmailArchiver(self.r, subs)
         threads = []
         for sub in modmailArchiver.subs_intersec:
-            temp = modmailArchiver(self.r, [sub,])
+            temp = ModmailArchiver(self.r, [sub,])
             threads.append(threading.Thread(target=temp.log, args=(None,)))
         if modmailArchiver.modMailMulti:
             self.logger.info("{} | Forcing Mod Mail history for subs: {}".format(self.me, [str(i) for i in modmailArchiver.subs_intersec]))
