@@ -15,8 +15,7 @@ class ModLogger(object):
 
     @property
     def subs_intersec(self):
-        #return list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
-        return self.subs
+        return list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
 
     @property
     def modLogMulti(self):

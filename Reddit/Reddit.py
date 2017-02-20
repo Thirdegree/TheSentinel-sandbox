@@ -127,9 +127,9 @@ class SentinelInstance():
         for thread in threads:
             thread.start()
 
-    def forceModMailHistory(self, body):
+    def forceModMailHistory(self, message):
         matchstring = "(?:\/?r\/(\w+)|(all))"
-        match = re.findall(matchstring, body, re.I)
+        match = re.findall(matchstring, message.body, re.I)
         if not match:
             return
         if match[0][1] == 'all':
@@ -144,8 +144,8 @@ class SentinelInstance():
         modmailArchiver = ModmailArchiver(self.r, subs)
         threads = []
         for sub in modmailArchiver.subs_intersec:
-            temp = modmailArchiver(self.r, [sub,])
-            threads.append(threading.Thread(target=temp.log, args=(None,)))
+            temp = ModmailArchiver(self.r, [sub,])
+            threads.append(threading.Thread(target=temp.log, args=(None, message)))
         if modmailArchiver.modMailMulti:
             self.logger.info("{} | Forcing Mod Mail history for subs: {}".format(self.me, [str(i) for i in modmailArchiver.subs_intersec]))
         for thread in threads:
@@ -164,10 +164,10 @@ class SentinelInstance():
                 continue
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModlogHistory(message.body)
+                self.masterClass.forceModlogHistory(message)
 
             if "force modmail history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModMailHistory(message.body)
+                self.masterClass.forceModMailHistory(message)
 
             if "alertbroadcast" in message.subject.lower():
                 self.logger.info("Sending global modmail alert")
