@@ -1,10 +1,11 @@
 from ..helpers import getSentinelLogger, ModmailArchiverDB
 from datetime import datetime
-
+import prawcore
 
 class ModmailArchiver(object):
     def __init__(self, r, subs): #subs is a list of strings
         self.r = r
+        self.me = str(self.r.user.me())
         self.logger = getSentinelLogger()
         self.db = ModmailArchiverDB()
         self.subs = subs
@@ -17,7 +18,13 @@ class ModmailArchiver(object):
     def modMailMulti(self):
         subs_intersec = list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
         try:
-            return self.r.subreddit("+".join(subs_intersec))
+            subs_with_mail_perms = []
+            for sub in subs_intersec:
+                for mod in self.r.subreddit(sub).moderator():
+                    if mod == 'TheSentinelBot' and ('mail' in mod.mod_permissions or 'all' in mod.mod_permissions):
+                        subs_with_mail_perms.append(sub)
+
+            return self.r.subreddit("+".join(subs_with_mail_perms))
         except TypeError:
             return None
 
@@ -64,6 +71,9 @@ class ModmailArchiver(object):
 
         except StopIteration:
             pass
+        except prawcore.exceptions.Forbidden:
+            self.logger.warning('Missing `mail` permission')
+
 
         return arg_dicts
 
