@@ -4,4 +4,4 @@ from .SentinelLogger import getSentinelLogger
 from .SlackNotifier import SlackNotifier
 
 __all__ = ["Zion", "getSentinelLogger", "oAuthDatabase",
-           "SlackNotifier", "TheTraveler", "Utility", "ModloggerDB"]
+           "SlackNotifier", "TheTraveler", "Utility", "ModloggerDB", "ModmailArchiverDB"]

@@ -1,3 +1,3 @@
-from .ModmailArchiver import ModmailArchiver
+from .modmail import ModmailArchiver
 
 __all__ = ["ModmailArchiver"]
