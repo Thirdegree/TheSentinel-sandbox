@@ -4,6 +4,7 @@ from ..helpers.responses import *
 from ..helpers import getSentinelLogger, SlackNotifier
 from ..objects import Memcache
 from ..ModLogger import ModLogger
+from ..ModmailArchiver import ModmailArchiver
 from ..exceptions import TooFrequent
 
 
@@ -23,7 +24,7 @@ class SentinelInstance():
         self.logger.info(u"{} | Modding {} users in {}".format(self.me, self.subCount, [str(x) for x in self.subsModded]))
         self.modMulti = self.r.subreddit('mod')
         self.globalBlacklistSubs = ['YT_Killer','TheSentinelBot']
-        self.subextractor = re.compile("r\/(.*)\b")
+        self.subextractor = re.compile("r\/(.*)")
 
 
         #this is fucking awful. it's just a list of moderators of the above two subs.
@@ -35,6 +36,7 @@ class SentinelInstance():
         self.subscriberLimit = 20000000
         self.notifier = SlackNotifier()
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
+        self.modmailArchiver = ModmailArchiver(self.r, [str(i) for i in self.subsModded])
         self.edited_done = deque()
 
         self.can_global_action = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
@@ -125,6 +127,29 @@ class SentinelInstance():
         for thread in threads:
             thread.start()
 
+    def forceModMailHistory(self, body):
+        matchstring = "(?:\/?r\/(\w+)|(all))"
+        match = re.findall(matchstring, body, re.I)
+        if not match:
+            return
+        if match[0][1] == 'all':
+            subs = [str(i).lower() for i in self.subsModded]
+            subs_asked = subs
+        else:
+            subs_asked = [i[0].lower() for i in match]
+            subs = list(set(subs_asked) & set([str(i).lower() for i in self.subsModded]))
+        if not subs:
+            self.logger.info("{} | Found no matching subs to force modmail history from {}".format(self.me, subs_asked))
+            return
+        modmailArchiver = ModmailArchiver(self.r, subs)
+        threads = []
+        for sub in modmailArchiver.subs_intersec:
+            temp = modmailArchiver(self.r, [sub,])
+            threads.append(threading.Thread(target=temp.log, args=(None,)))
+        if modmailArchiver.modMailMulti:
+            self.logger.info("{} | Forcing Mod Mail history for subs: {}".format(self.me, [str(i) for i in modmailArchiver.subs_intersec]))
+        for thread in threads:
+            thread.start()
 
 
     def checkInbox(self):
@@ -140,6 +165,9 @@ class SentinelInstance():
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
                 self.masterClass.forceModlogHistory(message.body)
+
+            if "force modmail history" in message.subject.lower() and message.author in self.can_global_action:
+                self.masterClass.forceModMailHistory(message.body)
 
             if "alertbroadcast" in message.subject.lower():
                 self.logger.info("Sending global modmail alert")
@@ -256,7 +284,7 @@ class SentinelInstance():
     def removeBlacklist(self, thing):
         sub_string = re.search(self.subextractor, thing.subject)
         if not sub_string:
-            thing.reply("I'm sorry, your message appears to be missing a subreddit specification.")
+            thing.reply("I'm sorry, your message appears to be missing a subreddit specification.\n\nPlease try using [our site](http://beta.layer7.solutions/sentinel/edit/) if you are still having issues. Thanks.")
         subreddit = self.r.subreddit(sub_string.group(1))
 
         try:
@@ -329,6 +357,7 @@ class SentinelInstance():
                 #self.checkModmail() # Not Used
                 self.clearQueue()
                 self.modlogger.log()
+                self.modmailArchiver.log()
                 if self.masterClass.killThreads:
                     self.logger.info("{} | Acknowledging killThread".format(self.me))
             except praw.exceptions.APIException:
