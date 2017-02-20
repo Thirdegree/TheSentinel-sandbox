@@ -276,7 +276,7 @@ class SentinelInstance():
     def addBlacklist(self, thing):
         sub_string = re.search(self.subextractor, thing.subject)
         if not sub_string:
-            thing.reply("I'm sorry, your message appears to be missing a subreddit specification.")
+            thing.reply("I'm sorry, your message appears to be missing a subreddit specification.\n\nPlease try using [our site](http://beta.layer7.solutions/sentinel/edit/) if you are still having issues. Thanks.")
         subreddit = self.r.subreddit(sub_string.group(1))
 
         try:
