@@ -21,35 +21,46 @@ class ModmailArchiver(object):
         except TypeError:
             return None
 
-    def gather_items(self, limit):
+    def gather_items(self, limit=200):
         arg_dicts = []
         last_seen = self.db.get_last_seen()
-        if self.modLogMulti:
-            log_generator = self.modLogMulti.mod.log(limit=limit)
+        if self.modMailMulti:
+            mail_generator = self.modMailMulti.mod.inbox(limit=limit)
         else:
             return
         try:
-            #item = log_generator.next()
-
-            for item in log_generator:
-                if limit and self.db.is_logged(item.id):
+            for mail in mail_generator:
+                if limit and self.db.is_logged(mail.id):
                     continue
+                #['author', 'block', 'body', 'body_html', 'context', 'created', 'created_utc', 'dest', 'distinguished', 'first_message', 'first_message_name', 'fullname', 'id', 'mark_read', 'mark_unread', 'mute', 'name', 'new', 'parent_id', 'parse', 'replies', 'reply', 'subject', 'subreddit', 'subreddit_name_prefixed', 'unmute', 'was_comment']
                 arg_dict = {
-                    "description": item.description,
-                    "thing_id": item.target_fullname,
-                    "mod_name": str(item.mod),
-                    "author_name": None if len(item.target_author) == 0 else item.target_author,
-                    "action": item.action,
-                    "action_reason": item.details,
-                    "permalink": item.target_permalink,
-                    "thingcreated_utc": datetime.utcfromtimestamp(item.created_utc),
-                    "subreddit": str(item.subreddit),
-                    "modaction_id": item.id,
-                    "title": item.target_title
+                    "thing_id": mail.fullname,
+                    "message_root_thing_id": mail.first_message_name,
+                    "message_from": str(mail.author),
+                    "message_to": mail.dest.replace("#", "r/") if mail.dest.startswith("#") else mail.dest,
+                    "created_utc": datetime.utcfromtimestamp(mail.created_utc),
+                    "subject": mail.subject,
+                    "body": mail.body,
+                    "parent_thing_id": mail.parent_id,
+                    "subreddit": mail.subreddit
                 }
-
                 arg_dicts.append(arg_dict)
-                item = log_generator.next()
+
+                for reply in mail.replies:
+                    reply_dict = {
+                        "thing_id": reply.fullname,
+                        "message_root_thing_id": reply.first_message_name,
+                        "message_from": str(reply.author),
+                        "message_to": reply.dest.replace("#", "r/") if reply.dest.startswith("#") else reply.dest,
+                        "created_utc": datetime.utcfromtimestamp(reply.created_utc),
+                        "subject": reply.subject,
+                        "body": reply.body,
+                        "parent_thing_id": reply.parent_id,
+                        "subreddit": reply.subreddit
+                    }
+                    arg_dicts.append(reply_dict)
+
+                mail = mail_generator.next()
 
         except StopIteration:
             pass
@@ -61,3 +72,4 @@ class ModmailArchiver(object):
         self.db.log_items(arg_dicts)
         if not limit:
             self.r.redditor('thirdegree').message('force modlog history', 'Finished for {}'.format(self.subs))
+
