@@ -9,22 +9,29 @@ class ModmailArchiver(object):
         self.logger = getSentinelLogger()
         self.db = ModmailArchiverDB()
         self.subs = subs
+        self.subs_with_mail_perms = []
 
     @property
     def opt_ins(self):
         return [i.lower() for i in self.db.get_subs_enabled()]
 
     @property
-    def modMailMulti(self):
-        subs_intersec = list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
-        try:
-            subs_with_mail_perms = []
-            for sub in subs_intersec:
-                for mod in self.r.subreddit(sub).moderator():
-                    if mod == 'TheSentinelBot' and ('mail' in mod.mod_permissions or 'all' in mod.mod_permissions):
-                        subs_with_mail_perms.append(sub)
+    def subs_intersec(self):
+        #subs_list = list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
+        for sub in list(set([i.lower() for i in self.subs]) & set(self.opt_ins)):
+            for mod in self.r.subreddit(sub).moderator():
+                if mod == self.me:
+                    if 'mail' in mod.mod_permissions or 'all' in mod.mod_permissions:
+                        self.subs_with_mail_perms.append(sub)
+                    else:
+                        self.logger.warning('{} | Missing `mail` permission for: {}'.format(self.me, sub))
 
-            return self.r.subreddit("+".join(subs_with_mail_perms))
+        return self.subs_with_mail_perms
+
+    @property
+    def modMailMulti(self):
+        try:
+            return self.r.subreddit("+".join(self.subs_with_mail_perms))
         except TypeError:
             return None
 
