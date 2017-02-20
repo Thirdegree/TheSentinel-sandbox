@@ -36,7 +36,7 @@ class SentinelInstance():
         self.subscriberLimit = 20000000
         self.notifier = SlackNotifier()
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
-        #self.modmailArchiver = ModmailArchiver(self.r, [str(i) for i in self.subsModded])
+        self.modmailArchiver = ModmailArchiver(self.r, [str(i) for i in self.subsModded])
         self.edited_done = deque()
 
         self.can_global_action = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
@@ -166,9 +166,8 @@ class SentinelInstance():
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
                 self.masterClass.forceModlogHistory(message.body)
 
-            # Disabled until PRAW supports getting modmail replies
-            #if "force modmail history" in message.subject.lower() and message.author in self.can_global_action:
-            #    self.masterClass.forceModMailHistory(message.body)
+            if "force modmail history" in message.subject.lower() and message.author in self.can_global_action:
+                self.masterClass.forceModMailHistory(message.body)
 
             if "alertbroadcast" in message.subject.lower():
                 self.logger.info("Sending global modmail alert")
@@ -358,7 +357,7 @@ class SentinelInstance():
                 #self.checkModmail() # Not Used
                 self.clearQueue()
                 self.modlogger.log()
-                #self.modmailArchiver.log() # Disabled until PRAW supports getting modmail replies
+                self.modmailArchiver.log()
                 if self.masterClass.killThreads:
                     self.logger.info("{} | Acknowledging killThread".format(self.me))
             except praw.exceptions.APIException:

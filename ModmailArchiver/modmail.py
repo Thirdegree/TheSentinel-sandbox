@@ -43,22 +43,24 @@ class ModmailArchiver(object):
                         "subreddit": mail.subreddit
                     }
                     arg_dicts.append(arg_dict)
-
-                for reply in mail.replies:
-                    if limit and not self.db.is_logged(mail.fullname):
-                        reply_dict = {
-                            "thing_id": reply.fullname,
-                            "message_root_thing_id": reply.first_message_name,
-                            "message_from": str(reply.author),
-                            "message_to": reply.dest.replace("#", "r/") if reply.dest.startswith("#") else reply.dest,
-                            "created_utc": datetime.utcfromtimestamp(reply.created_utc),
-                            "subject": reply.subject,
-                            "body": reply.body,
-                            "parent_thing_id": reply.parent_id,
-                            "subreddit": reply.subreddit
-                        }
-                        arg_dicts.append(reply_dict)
-
+                try:
+                    for reply in mail.replies['data']['children']:
+                        if limit and not self.db.is_logged(reply['data']['name']):
+                            reply_dict = {
+                                "thing_id": reply['data']['name'],
+                                "message_root_thing_id": reply['data']['first_message_name'],
+                                "message_from": reply['data']['author'],
+                                "message_to": reply['data']['dest'].replace("#", "r/") if reply['data']['dest'].startswith("#") else reply['data']['dest'],
+                                "created_utc": datetime.utcfromtimestamp(reply['data']['created_utc']),
+                                "subject": reply['data']['subject'],
+                                "body": reply['data']['body'],
+                                "parent_thing_id": reply['data']['parent_id'],
+                                "subreddit": reply['data']['subreddit']
+                            }
+                            arg_dicts.append(reply_dict)
+                except TypeError:
+                    # No replies to the message, so just pass along
+                    pass
                 mail = mail_generator.next()
 
         except StopIteration:
