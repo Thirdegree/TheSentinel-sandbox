@@ -23,7 +23,6 @@ class ModmailArchiver(object):
 
     def gather_items(self, limit):
         arg_dicts = []
-        last_seen = self.db.get_last_seen()
         if self.modMailMulti:
             mail_generator = self.modMailMulti.mod.inbox(limit=limit)
         else:
