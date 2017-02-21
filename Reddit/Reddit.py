@@ -219,7 +219,6 @@ class SentinelInstance():
                 self.logger.debug("{} | Added Post to toAdd - {}".format(self.me, post.fullname))
                 toAdd.append(post)
                 self.masterClass.done.add(post.fullname)
-        self.logger.debug('{} | Done w/ GetNew | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Comments'.format(self.me))
         for comment in self.modMulti.comments(limit=300):
@@ -227,7 +226,6 @@ class SentinelInstance():
                 self.logger.debug("{} | Added comment to toAdd - {}".format(self.me, comment.fullname))
                 toAdd.append(comment)
                 self.masterClass.done.add(comment.fullname)
-        self.logger.debug('{} | Done w/ GetComments | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Edited'.format(self.me))
         editlist = []
@@ -237,7 +235,6 @@ class SentinelInstance():
                 self.logger.debug("{} | Added edit to toAdd - {}".format(self.me, edit.fullname))
                 editlist.append(edit)
                 self.edited_done.append(edit.fullname)
-        self.logger.debug('{} | Done w/ GetEdited | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Spam'.format(self.me))
         for spam in self.modMulti.mod.spam(limit=200):
@@ -245,8 +242,7 @@ class SentinelInstance():
                 self.logger.debug("{} | Added spam to toAdd - {}".format(self.me, spam.fullname))                
                 toAdd.append(spam)
                 self.masterClass.done.add(spam.fullname)
-        self.logger.debug('{} | Done w/ GetSpam | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
-        
+
         if (toAdd + editlist):
             self.logger.debug("Adding {} items to cache".format(len(toAdd+editlist)))
             for i in toAdd + editlist:

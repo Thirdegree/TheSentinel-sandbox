@@ -9,7 +9,6 @@ class ModmailArchiver(object):
         self.logger = getSentinelLogger()
         self.db = ModmailArchiverDB()
         self.subs = subs
-        self.subs_with_mail_perms = []
 
     @property
     def opt_ins(self):
@@ -17,21 +16,22 @@ class ModmailArchiver(object):
 
     @property
     def subs_intersec(self):
-        #subs_list = list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
-        for sub in list(set([i.lower() for i in self.subs]) & set(self.opt_ins)):
+        subs_list = list(set([i.lower() for i in self.subs]) & set(self.opt_ins))
+        subs_with_mail_perms = []
+        for sub in subs_list:
             for mod in self.r.subreddit(sub).moderator():
                 if mod == self.me:
                     if 'mail' in mod.mod_permissions or 'all' in mod.mod_permissions:
-                        self.subs_with_mail_perms.append(sub)
+                        subs_with_mail_perms.append(sub)
                     else:
                         self.logger.warning('{} | Missing `mail` permission for: {}'.format(self.me, sub))
-
-        return self.subs_with_mail_perms
+        #self.logger.info('{} | Watching modmail for: {}'.format(self.me, subs_with_mail_perms))
+        return subs_with_mail_perms
 
     @property
     def modMailMulti(self):
         try:
-            return self.r.subreddit("+".join(self.subs_with_mail_perms))
+            return self.r.subreddit("+".join(self.subs_intersec))
         except TypeError:
             return None
 
@@ -43,7 +43,7 @@ class ModmailArchiver(object):
             return
         try:
             for mail in mail_generator:
-                if limit and not self.db.is_logged(mail.fullname):
+                if not self.db.is_logged(mail.fullname):
                     arg_dict = {
                         "thing_id": mail.fullname,
                         "message_root_thing_id": mail.first_message_name,
@@ -56,6 +56,7 @@ class ModmailArchiver(object):
                         "subreddit": str(mail.subreddit)
                     }
                     arg_dicts.append(arg_dict)
+                    self.logger.debug('{me} | Added Modmail ID to process: {thing_id}'.format(me=self.me, thing_id=mail.fullname))
                 for reply in mail.replies:
                     if not self.db.is_logged(reply.fullname):
                         reply_dict = {
@@ -70,6 +71,7 @@ class ModmailArchiver(object):
                             "subreddit": str(reply.subreddit)
                         }
                         arg_dicts.append(reply_dict)
+                        self.logger.debug('{me} | Added Modmail ID to process: {thing_id}'.format(me=self.me, thing_id=reply.fullname))
                 mail = mail_generator.next()
 
         except StopIteration:
@@ -87,4 +89,7 @@ class ModmailArchiver(object):
         if (not limit) and message:
             message.reply('Finished for {}, {} inserted'.format(self.subs_intersec, logged))
             self.logger.info("Force Mod Mail History complete for {}, {} inserted".format(self.subs_intersec, logged))
-
+        elif logged:
+            self.logger.info('{me} | Processed {amount} Modmail things'.format(me=self.me, amount=logged))
+        else:
+            pass
