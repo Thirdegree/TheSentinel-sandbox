@@ -103,7 +103,7 @@ class SentinelInstance():
             self.logger.debug('PRAW Forbidden Error')
             return False
 
-    def forceModlogHistory(self, body):
+    def forceModlogHistory(self, body, author):
         matchstring = "(?:\/?r\/(\w+)|(all))"
         match = re.findall(matchstring, body, re.I)
         if not match:
@@ -121,15 +121,15 @@ class SentinelInstance():
         threads = []
         for sub in modlogger.subs_intersec: # I'm not sure why, but this works far better than a single modlogger for all the subs to force
             temp = ModLogger(self.r, [sub,])
-            threads.append(threading.Thread(target=temp.log, args=(None,)))
+            threads.append(threading.Thread(target=temp.log, args=(None, author)))
         if modlogger.modLogMulti:
             self.logger.info("{} | Forcing Modlog history for subs: {}".format(self.me, [str(i) for i in modlogger.subs_intersec]))
         for thread in threads:
             thread.start()
 
-    def forceModMailHistory(self, message):
+    def forceModMailHistory(self, body, author):
         matchstring = "(?:\/?r\/(\w+)|(all))"
-        match = re.findall(matchstring, message.body, re.I)
+        match = re.findall(matchstring, body, re.I)
         if not match:
             return
         if match[0][1] == 'all':
@@ -145,7 +145,7 @@ class SentinelInstance():
         threads = []
         for sub in modmailArchiver.subs_intersec:
             temp = ModmailArchiver(self.r, [sub,])
-            threads.append(threading.Thread(target=temp.log, args=(None, message)))
+            threads.append(threading.Thread(target=temp.log, args=(None, author)))
         if modmailArchiver.modMailMulti:
             self.logger.info("{} | Forcing Mod Mail history for subs: {}".format(self.me, [str(i) for i in modmailArchiver.subs_intersec]))
         for thread in threads:
@@ -164,10 +164,10 @@ class SentinelInstance():
                 continue
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModlogHistory(message)
+                self.masterClass.forceModlogHistory(message.body, author)
 
             if "force modmail history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModMailHistory(message)
+                self.masterClass.forceModMailHistory(message.body, author)
 
             if "alertbroadcast" in message.subject.lower():
                 self.logger.info("Sending global modmail alert")
