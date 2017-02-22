@@ -1,4 +1,4 @@
-from ..helpers import getSentinelLogger, ModmailArchiverDB
+from ...helpers import getSentinelLogger, ModmailArchiverDB
 from datetime import datetime
 import prawcore
 

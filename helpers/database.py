@@ -35,6 +35,18 @@ class Blacklist(Database):
             with conn.cursor() as c:
                 c.execute("SET CLIENT_ENCODING TO 'UTF8';")
 
+    def get_subs_enabled(self):
+        execString1 = "SELECT subreddit_name FROM subreddit WHERE sentinel_enabled=true"
+        with self.blacklist_conn as conn:
+            with conn.cursor('get_subs_enabled') as c:
+
+                c.execute(execString1)
+                fetched = c.fetchall()
+        if fetched:
+            return [i[0] for i in fetched]
+        return []
+
+
     def isBlacklisted(self, subreddit, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
         if (not media_author) and (not media_channel_id):
             self.logger.warning('No Video Provided')
@@ -448,17 +460,6 @@ class ShadowbanDatabase(Database):
                 c.execute(statement, kwargs)
         return True
 
-
-class TheTraveler(NSA):
-    def __init__(self):
-        super(TheTraveler, self).__init__()
-
-
-class Zion(SlackHooks, Blacklist):
-    def __init__(self):
-        super(Zion, self).__init__()
-
-
 class ModmailArchiverDB(Database):
     def __init__(self):
         super(ModmailArchiverDB, self).__init__()
@@ -497,4 +498,53 @@ class ModmailArchiverDB(Database):
             with conn.cursor('is_logged') as c:
                 c.execute('SELECT * FROM modmail WHERE thing_id=%s', (thing_id,))
                 return bool(c.fetchone())
+
+class FlairbotDB(Database):
+    def __init__(self):
+        super(FlairbotDB, self).__init__()
+        self.flairbot_conn = self.get_conn()
+        with self.flairbot_conn as conn:
+            with conn.cursor() as c:
+                c.execute("SET CLIENT_ENCODING TO 'UTF8';")
+
+
+    def get_subs_enabled(self):
+        execString1 = "SELECT subreddit_name FROM subreddit WHERE flairbot_enabled=true"
+        with self.flairbot_conn as conn:
+            with conn.cursor('get_subs_enabled') as c:
+
+                c.execute(execString1)
+                fetched = c.fetchall()
+        if fetched:
+            return [i[0] for i in fetched]
+        return []
+
+    def get_preferences(self, subs):
+        execString1 = "SELECT subreddit.subreddit_name, flairbot_preferences.* FROM flairbot_preferences, subreddit WHERE subreddit_id=subreddit.id and subreddit_name=ANY(%s)"
+        with self.flairbot_conn as conn:
+            with conn.cursor() as c:
+                c.execString1(execString1, subs)
+                fetched = c.fetchall()
+        prefs = {}
+        for i in fetched:
+            prefs[i[0]] = {'''A DICT OF THE PREFS'''}
+        return prefs
+
+    def get_sentinel_removed(self, subs):
+        execString1 = "SELECT thing_id from sentinel_actions where removed=true AND (select id from subreddit where id=(select subreddit_id from reddit_thing where reddit_thing.thing_id = sentinel_actions.thing_id)) in (select id from subreddit where subreddit_name=ANY(%s) limit 1000"
+        with self.flairbot_conn as conn:
+            with conn.cursor() as c:
+                c.execString1(execString1, subs)
+                fetched = c.fetchall()
+        return set([i[0] for i in fetched] if fetched else [])
+
+class TheTraveler(NSA):
+    def __init__(self):
+        super(TheTraveler, self).__init__()
+
+
+class Zion(SlackHooks, Blacklist):
+    def __init__(self):
+        super(Zion, self).__init__()
+
 

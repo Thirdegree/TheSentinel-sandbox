@@ -3,8 +3,10 @@ from collections import deque
 from ..helpers.responses import *
 from ..helpers import getSentinelLogger, SlackNotifier
 from ..objects import Memcache
-from ..ModLogger import ModLogger
-from ..ModmailArchiver import ModmailArchiver
+from .ModLogger import ModLogger
+from .ModmailArchiver import ModmailArchiver
+from .Flairbot import Flairbot
+from .Sentinel import Sentinel
 from ..exceptions import TooFrequent
 import prawcore.exceptions
 
@@ -23,7 +25,7 @@ class SentinelInstance():
         self.subsModded = [i for i in self.subsModdedTemp]
         self.subsModdedWrite = [(i, i.subscribers) for i in self.subsModded]
         self.logger.info(u"{} | Modding {} users in {}".format(self.me, self.subCount, [str(x) for x in self.subsModded]))
-        self.modMulti = self.r.subreddit('mod')
+        self.modMulti = self.r.subreddit('+'.join(self.subs_intersec))
         self.globalBlacklistSubs = ['YT_Killer','TheSentinelBot']
         self.subextractor = re.compile("r\/(.*)")
 
@@ -38,6 +40,8 @@ class SentinelInstance():
         self.notifier = SlackNotifier()
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
         self.modmailArchiver = ModmailArchiver(self.r, [str(i) for i in self.subsModded])
+        self.flairbot = Flairbot(self.r, [str(i) for i in self.subsModded])
+        self.sentinel = Sentinel(self.r, [str(i) for i in self.subsModded], self.masterClass)
         self.edited_done = deque()
 
         self.can_global_action = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
@@ -46,6 +50,14 @@ class SentinelInstance():
 
     def __str__(self):
         return self.me.name
+
+    @property
+    def opt_ins(self):
+        return [i.lower() for i in self.masterClass.database.get_subs_enabled()]
+
+    @property
+    def subs_intersec(self):
+        return list(set([str(i).lower() for i in self.subsModded]) & set(self.opt_ins))
 
     def messageSubreddits(self, title, message):
         for sub in self.subsModded:
@@ -176,16 +188,16 @@ class SentinelInstance():
 
             if message.body.startswith('**gadzooks!'):
                 self.acceptModInvite(message)
-                self.forceModlogHistory("r/" + str(message.subreddit))
+                self.forceModlogHistory("r/" + str(message.subreddit), None)
                 self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
                 self.masterClass.websync.ping_accept(str(message.subreddit))
                 continue
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModlogHistory(message.body, author)
+                self.masterClass.forceModlogHistory(message.body, str(message.author))
 
             if "force modmail history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModMailHistory(message.body, author)
+                self.masterClass.forceModMailHistory(message.body, str(message.author))
 
             if "alertbroadcast" in message.subject.lower():
                 self.logger.info("Sending global modmail alert")
@@ -200,11 +212,11 @@ class SentinelInstance():
                     pass
 
             if "add to blacklist" in message.subject.lower():
-                self.addBlacklist(message)
+                self.sentinel.addBlacklist(message)
                 continue
 
             if "remove from blacklist" in message.subject.lower():
-                self.removeBlacklist(message)
+                self.sentinel.removeBlacklist(message)
                 continue
 
             if "You have been removed as a moderator from " in message.body:
@@ -228,6 +240,7 @@ class SentinelInstance():
             if message.distinguished == 'admin':
                 self.r.send_message('/r/' + self.messageSub, 'New Admin Mail: FROM: /u/{} | SUBJECT: {}'.format(message.author.name.encode("ascii", "xmlcharrefreplace"), message.subject.encode("ascii", "xmlcharrefreplace")), "A new Admin mail has come in. \n\n[**Link to message**](https://www.reddit.com/message/messages/{}) \n\n---\n\n{}".format(message.id, message.body.encode("ascii", "xmlcharrefreplace")))
                 self.logger.debug('Oh hey! We got Admin Mail!')
+
 
     def checkContent(self):
         toAdd = []
@@ -269,55 +282,7 @@ class SentinelInstance():
                 self.cache.add(i)
         self.masterClass.markProcessed(toAdd)
 
-    def addBlacklist(self, thing):
-        sub_string = re.search(self.subextractor, thing.subject)
-        if not sub_string:
-            thing.reply("I'm sorry, your message appears to be missing a subreddit specification.\n\nPlease try using [our site](http://beta.layer7.solutions/sentinel/edit/) if you are still having issues. Thanks.")
-        subreddit = self.r.subreddit(sub_string.group(1))
-
-        try:
-            mods = [i for i in subreddit.moderator]
-
-            if self.me not in mods:
-                thing.reply(ForbiddenResponse.format(self.getCorrectBot(subreddit)))
-            elif thing.author in mods:
-                self.logger.info(u'{} | Add To Blacklist request from: {}'.format(self.me, thing.author))
-                try:
-                    bl = self.masterClass.addBlacklist(thing, subreddit)
-                    if bl:
-                        thing.reply("Channel(s) added to the blacklist: {}".format(bl))
-                    else:
-                        thing.reply("Channel add failed.")
-                except requests.exceptions.HTTPError:
-                    self.logger.info(u'{} | Add to blacklist failed - HTTPError')
-                    thing.reply("Channel add failed. If the channel you requested was from Soundcloud, this is a known bug by Soundcloud.")
-
-        except praw.exceptions.APIException:
-            self.logger.warning(u'PRAW Forbidden Error - Incorrect Sentinel Instance Messaged')
-            thing.reply(ForbiddenResponse.format(self.getCorrectBot(subreddit)))
-
-    def removeBlacklist(self, thing):
-        sub_string = re.search(self.subextractor, thing.subject)
-        if not sub_string:
-            thing.reply("I'm sorry, your message appears to be missing a subreddit specification.\n\nPlease try using [our site](http://beta.layer7.solutions/sentinel/edit/) if you are still having issues. Thanks.")
-        subreddit = self.r.subreddit(sub_string.group(1))
-
-        try:
-            mods = [i for i in subreddit.moderator]
-
-            if self.me not in mods:
-                thing.reply(ForbiddenResponse.format(self.getCorrectBot(subreddit)))
-            elif thing.author in mods:
-                self.logger.info(u'{} | Remove From Blacklist request from: {}'.format(self.me, thing.author))
-                try:
-                    bl = self.masterClass.removeBlacklist(thing, subreddit)
-                    if bl:
-                        thing.reply("Channel(s) removed from the blacklist: {}".format(bl))
-                except requests.exceptions.HTTPError:
-                    pass
-        except praw.exceptions.APIException:
-            self.logger.warning('PRAW Forbidden Error - Incorrect Sentinel Instance Messaged')
-            thing.reply(ForbiddenResponse.format(self.getCorrectBot(subreddit)))
+    
 
     @property
     def subCount(self):
@@ -364,6 +329,7 @@ class SentinelInstance():
         while not self.masterClass.killThreads:
             #self.logger.debug('{} | Cycling..'.format(self.me.name))
             try:
+                self.modMulti = self.r.subreddit('+'.join(self.subs_intersec))
                 self.masterClass.done = set(self.masterClass.isProcessed(self.subsModded))
                 #self.modMulti = self.r.subreddit('mod')
 
