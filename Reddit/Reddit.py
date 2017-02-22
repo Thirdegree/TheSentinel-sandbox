@@ -120,7 +120,7 @@ class SentinelInstance():
         except IndexError:
             return False
 
-    def forceModlogHistory(self, body):
+    def forceModlogHistory(self, body, author):
         matchstring = "(?:\/?r\/(\w+)|(all))"
         match = re.findall(matchstring, body, re.I)
         if not match:
@@ -138,15 +138,15 @@ class SentinelInstance():
         threads = []
         for sub in modlogger.subs_intersec: # I'm not sure why, but this works far better than a single modlogger for all the subs to force
             temp = ModLogger(self.r, [sub,])
-            threads.append(threading.Thread(target=temp.log, args=(None,)))
+            threads.append(threading.Thread(target=temp.log, args=(None, author)))
         if modlogger.modLogMulti:
             self.logger.info("{} | Forcing Modlog history for subs: {}".format(self.me, [str(i) for i in modlogger.subs_intersec]))
         for thread in threads:
             thread.start()
 
-    def forceModMailHistory(self, message):
+    def forceModMailHistory(self, body, author):
         matchstring = "(?:\/?r\/(\w+)|(all))"
-        match = re.findall(matchstring, message.body, re.I)
+        match = re.findall(matchstring, body, re.I)
         if not match:
             return
         if match[0][1] == 'all':
@@ -162,7 +162,7 @@ class SentinelInstance():
         threads = []
         for sub in modmailArchiver.subs_intersec:
             temp = ModmailArchiver(self.r, [sub,])
-            threads.append(threading.Thread(target=temp.log, args=(None, message)))
+            threads.append(threading.Thread(target=temp.log, args=(None, author)))
         if modmailArchiver.modMailMulti:
             self.logger.info("{} | Forcing Mod Mail history for subs: {}".format(self.me, [str(i) for i in modmailArchiver.subs_intersec]))
         for thread in threads:
@@ -182,10 +182,10 @@ class SentinelInstance():
                 continue
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModlogHistory(message)
+                self.masterClass.forceModlogHistory(message.body, author)
 
             if "force modmail history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModMailHistory(message)
+                self.masterClass.forceModMailHistory(message.body, author)
 
             if "alertbroadcast" in message.subject.lower():
                 self.logger.info("Sending global modmail alert")
@@ -238,7 +238,6 @@ class SentinelInstance():
                 self.logger.debug("{} | Added Post to toAdd - {}".format(self.me, post.fullname))
                 toAdd.append(post)
                 self.masterClass.done.add(post.fullname)
-        self.logger.debug('{} | Done w/ GetNew | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Comments'.format(self.me))
         for comment in self.modMulti.comments(limit=300):
@@ -246,7 +245,6 @@ class SentinelInstance():
                 self.logger.debug("{} | Added comment to toAdd - {}".format(self.me, comment.fullname))
                 toAdd.append(comment)
                 self.masterClass.done.add(comment.fullname)
-        self.logger.debug('{} | Done w/ GetComments | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Edited'.format(self.me))
         editlist = []
@@ -256,7 +254,6 @@ class SentinelInstance():
                 self.logger.debug("{} | Added edit to toAdd - {}".format(self.me, edit.fullname))
                 editlist.append(edit)
                 self.edited_done.append(edit.fullname)
-        self.logger.debug('{} | Done w/ GetEdited | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
 
         self.logger.debug('{} | Getting Reddit Spam'.format(self.me))
         for spam in self.modMulti.mod.spam(limit=200):
@@ -264,8 +261,7 @@ class SentinelInstance():
                 self.logger.debug("{} | Added spam to toAdd - {}".format(self.me, spam.fullname))                
                 toAdd.append(spam)
                 self.masterClass.done.add(spam.fullname)
-        self.logger.debug('{} | Done w/ GetSpam | Ratelimits: Remaining: {}. Used: {}'.format(self.me, self.r._core._rate_limiter.remaining, self.r._core._rate_limiter.used))
-        
+
         if (toAdd + editlist):
             self.logger.debug("Adding {} items to cache".format(len(toAdd+editlist)))
             for i in toAdd + editlist:
