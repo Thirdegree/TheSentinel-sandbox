@@ -87,7 +87,7 @@ class SentinelInstance():
                     item['author'] = str(thing.author)
                     item['subreddit'] = str(thing.subreddit)
                     item['permalink'] = perma
-                    if item['media_author'] not in seen and self.masterClass.isBlacklisted(item['subreddit'], item['media_link']) :
+                    if item['media_author'] not in seen:
                         self.notifier.send_message(str(thing.subreddit), item)
                         self.notifier.send_message('yt_killer', item)
                         seen.append(item['media_author'])
