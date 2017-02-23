@@ -44,7 +44,7 @@ class SentinelInstance():
 
         self.blacklisted_subs = ['pokemongo']
 
-        self.save_permissions()
+        
 
     def __str__(self):
         return self.me.name
@@ -377,6 +377,7 @@ class SentinelInstance():
                     break
 
     def start(self):
+        self.save_permissions()
         while not self.masterClass.killThreads:
             #self.logger.debug('{} | Cycling..'.format(self.me.name))
             try:
