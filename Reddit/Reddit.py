@@ -299,10 +299,13 @@ class SentinelInstance():
         return False
 
     def add_user_shadowban(self, thing):
-        regex_subreddits = "r/(\w*)"
-        regex_username = "u/(\w*)"
-        subs = re.findall(regex_subreddits, thing.body)
-        user = re.search(regex_username, thing.subject)
+        try:
+            regex_subreddits = "r/(\w*)"
+            regex_username = "u/(\w*)"
+            subs = re.findall(regex_subreddits, thing.body)
+            user = re.search(regex_username, thing.subject)
+        except AttributeError:
+            return False
         if not user or not subs:
             return False
         args = {
