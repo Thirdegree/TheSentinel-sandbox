@@ -6,6 +6,7 @@ from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..ModmailArchiver import ModmailArchiver
 from ..exceptions import TooFrequent
+import prawcore.exceptions
 
 
 class SentinelInstance():
@@ -95,14 +96,30 @@ class SentinelInstance():
         if processed:
             self.logger.info('{} | Removed items: {}'.format(self.me, processed))
 
-    def canAction(self, thing):
+    def get_permissions(self, mod_name, subreddit): #both strings
+        perms = list(self.r.subreddit(subreddit).moderator())
+        for mod in perms:
+            if str(mod) == mod_name:
+                self.logger.debug("{} | Moderator {} perimissions {}".format(self.me, mod, mod.mod_permissions))
+                return mod.mod_permissions
+
+
+    def canAction(self, thing, subreddit=None):
+        
         try:
+            if not thing:
+                if any([subreddit.lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
+                    self.logger.debug('Subreddit {} matches subs bot mods'.format(subreddit))
+                    return True
+                return False
             if any([str(thing.subreddit).lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
                 self.logger.debug('Thing {} matches subs bot mods'.format(thing.fullname))
                 return thing
             return False
-        except praw.exceptions.APIException:
+        except prawcore.exceptions.Forbidden:
             self.logger.debug('PRAW Forbidden Error')
+            return False
+        except IndexError:
             return False
 
     def forceModlogHistory(self, body, author):
@@ -164,6 +181,7 @@ class SentinelInstance():
                 self.save_permissions(str(message.subreddit))
                 self.forceModlogHistory("r/" + str(message.subreddit))
                 self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
+                self.masterClass.websync.ping_accept(str(message.subreddit))
                 continue
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
@@ -198,6 +216,7 @@ class SentinelInstance():
                 self.subsModded = [i for i in self.r.user.moderator_subreddits(limit=None)]
                 self.masterClass.writeSubs()
                 self.logger.info("{} | Now mods {} users.".format(self.me, self.subCount))
+                self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
                 continue
 
 
@@ -256,7 +275,7 @@ class SentinelInstance():
     def addBlacklist(self, thing):
         sub_string = re.search(self.subextractor, thing.subject)
         if not sub_string:
-            thing.reply("I'm sorry, your message appears to be missing a subreddit specification.")
+            thing.reply("I'm sorry, your message appears to be missing a subreddit specification.\n\nPlease try using [our site](http://beta.layer7.solutions/sentinel/edit/) if you are still having issues. Thanks.")
         subreddit = self.r.subreddit(sub_string.group(1))
 
         try:

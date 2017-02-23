@@ -8,7 +8,7 @@ import sys
 import time
 import json
 
-from .helpers import getSentinelLogger, Utility
+from .helpers import getSentinelLogger, Utility, Websync
 from .YouTube import YouTube
 from .DailyMotion import DailyMotion
 from .Vimeo import Vimeo
@@ -64,6 +64,7 @@ class TheSentinel(object):
 
         self.threads = []
         self.killThreads = False
+        self.websync = Websync(self)
 
         self.last_mod_alert = None
         self.done = set()
@@ -298,7 +299,7 @@ class TheSentinel(object):
             # Existing Code
             thread = threading.Thread(target=sentinel.start)
             self.threads.append(thread)
-
+        self.threads.append(threading.Thread(target=self.websync.main))
         self.logger.info(u'Starting Sentinel Instance Threads')
         for t in self.threads:
             t.start()
