@@ -424,7 +424,7 @@ class ShadowbanDatabase(Database):
     def get_shadowbanned(self):
         with self.shadowban_conn as conn:
             with conn.cursor() as c:
-                statement = "SELECT subreddit.subreddit_name, botban.username from botban, subreddit where subreddit_id=subreddit.id and subreddit.botban_enabled=true"
+                statement = "SELECT subreddit.subreddit_name, botban.username from botban, subreddit where subreddit_id=subreddit.id"
                 c.execute(statement)
                 fetched = c.fetchall()
         shadowbanned = {}
