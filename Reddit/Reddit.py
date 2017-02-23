@@ -43,6 +43,8 @@ class SentinelInstance():
 
         self.blacklisted_subs = ['pokemongo']
 
+        self.save_permissions()
+
     def __str__(self):
         return self.me.name
 
@@ -159,15 +161,16 @@ class SentinelInstance():
 
             if message.body.startswith('**gadzooks!'):
                 self.acceptModInvite(message)
+                self.save_permissions(str(message.subreddit))
                 self.forceModlogHistory("r/" + str(message.subreddit))
                 self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
                 continue
 
             if "force modlog history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModlogHistory(message.body, author)
+                self.masterClass.forceModlogHistory(message.body, str(message.author))
 
             if "force modmail history" in message.subject.lower() and message.author in self.can_global_action:
-                self.masterClass.forceModMailHistory(message.body, author)
+                self.masterClass.forceModMailHistory(message.body, str(message.author))
 
             if "alertbroadcast" in message.subject.lower():
                 self.logger.info("Sending global modmail alert")
@@ -340,6 +343,19 @@ class SentinelInstance():
 
     def getCorrectBot(self, subreddit):
         return self.masterClass.getBot(subreddit)
+
+    def save_permissions(self, subreddit=None):
+        if subreddit:
+            subs = [subreddit]
+        else:
+            subs = self.subsModded
+
+        for sub in subs:
+            for mod in self.r.subreddit(str(sub)).moderator():
+                if mod == self.me:
+                    perms = ","
+                    self.masterClass.save_sentinel_permissions(perms.join(mod.mod_permissions), str(sub))
+                    break
 
     def start(self):
         while not self.masterClass.killThreads:
