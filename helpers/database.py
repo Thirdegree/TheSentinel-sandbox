@@ -310,10 +310,16 @@ class Utility(Database):
                     c.execute(execString1, (subreddit, True, botname, subscribers))
 
     def remove_subreddit(self, subreddit):
-        execString1 = "UPDATE subreddit SET sentinel_enabled=FALSE, dirtbag_enabled=FALSE WHERE subreddit_name=%s"
+        execString1 = "UPDATE subreddit SET sentinel_enabled=FALSE, dirtbag_enabled=FALSE, redditbot_permissions=null WHERE subreddit_name=%s"
         with self.utility_conn as conn:
             with conn.cursor() as c:
                 c.execute(execString1, (subreddit,))
+
+    def update_permissions(self, permissions, subreddit):
+        execString1 = "UPDATE subreddit SET redditbot_permissions=(%s) WHERE subreddit_name=%s"
+        with self.utility_conn as conn:
+            with conn.cursor() as c:
+                c.execute(execString1, (permissions, subreddit))
 
 
 class ModloggerDB(Database):

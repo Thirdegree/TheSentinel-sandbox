@@ -46,6 +46,11 @@ class TheSentinel(object):
             'Twitter': twitter,
         }
 
+        self.cache = Memcache()
+        self.database = SentinelDatabase()
+        self.utility = Utility()
+        self.blacklistSub = 'TheSentinelBot'
+
         #must be added to manually until I find a better solution
         # List of (SentinelInstance(), queue) pairs
         self.sentinels = []
@@ -60,11 +65,6 @@ class TheSentinel(object):
         self.threads = []
         self.killThreads = False
         self.websync = Websync(self)
-
-        self.cache = Memcache()
-        self.database = SentinelDatabase()
-        self.utility = Utility()
-        self.blacklistSub = 'TheSentinelBot'
 
         self.last_mod_alert = None
         self.done = set()
@@ -133,6 +133,11 @@ class TheSentinel(object):
         else:
             self.utility.add_subreddit(str(thing), botname, thing.subscribers)
             return (thing, subscribers)
+
+    def save_sentinel_permissions(self, permissions, subreddit):
+        pass
+        self.utility.update_permissions(permissions, subreddit)
+        self.logger.info('Updated permissions for: {} | Perms: {}'.format(subreddit, permissions))
 
 
 
