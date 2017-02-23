@@ -3,7 +3,7 @@ import requests, json
 import os
 
 BotName="TheSentinelBot" 
-APP_VERS="1.1.1"
+APP_VERS="1.2.0"
 
 
 
