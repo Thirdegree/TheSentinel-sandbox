@@ -75,7 +75,15 @@ class SentinelInstance():
             thing = self.removalQueue.get()
             things = self.r.info([thing.fullname])
             for thing in things:
-                message = self.masterClass.getInfo(thing)
+                try:
+                    message = self.masterClass.getInfo(thing)
+                except KeyError:
+                    message = [{
+                        'media_author': None,
+                        'media_link': None,
+                        'media_channel_id': None,
+                        'media_platform':None,
+                    }]
 
                 if isinstance(thing, praw.models.Submission):
                     perma = thing.shortlink
@@ -87,7 +95,7 @@ class SentinelInstance():
                     item['author'] = str(thing.author)
                     item['subreddit'] = str(thing.subreddit)
                     item['permalink'] = perma
-                    if item['media_author'] not in seen and self.masterClass.isBlacklisted(item['subreddit'], item['media_link']) :
+                    if item['media_author'] not in seen and item['media_author']:
                         self.notifier.send_message(str(thing.subreddit), item)
                         self.notifier.send_message('yt_killer', item)
                         seen.append(item['media_author'])
@@ -294,19 +302,20 @@ class SentinelInstance():
     def user_shadowbanned(self, thing):
         if not str(thing.subreddit) in self.shadowbans:
             return False
-        if str(thing.author) in self.shadowbans[str(thing.subreddit)]:
+        if str(thing.author).lower() in self.shadowbans[str(thing.subreddit)]:
             return True
         return False
 
     def add_user_shadowban(self, thing):
         try:
-            regex_subreddits = "r/(\w*)"
-            regex_username = "u/(\w*)"
+            regex_subreddits = "r\/(\w*)"
+            regex_username = "u\/(\w*)"
             subs = re.findall(regex_subreddits, thing.body)
             user = re.search(regex_username, thing.subject)
+            self.logger.info('{} | Processessing add user shadowban {} for subs {}'.format(self.me, user.group(1), subs))
         except AttributeError:
             return False
-        if not user or not subs:
+        if (not user) or (not subs):
             return False
         args = {
             'subreddits': subs,
@@ -314,6 +323,7 @@ class SentinelInstance():
             'bannedby': str(thing.author),
             'bannedon': datetime.utcfromtimestamp(thing.created_utc),
         }
+
         if self.shadowban_db.add_shadowban(args):
             return (args['subreddits'], args['username'])
         return False
@@ -323,7 +333,7 @@ class SentinelInstance():
         regex_username = "u/(\w*)"
         subs = re.findall(regex_subreddits, thing.body)
         user = re.search(regex_username, thing.subject)
-        if not user or not subs:
+        if (not user) or (not subs):
             return False
         args = {
             'subreddits': subs,

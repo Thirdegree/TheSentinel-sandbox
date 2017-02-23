@@ -22,7 +22,7 @@ class Database(object):
 
     def get_conn(self, dbname = defaultdbnam):
         conn = psycopg2.connect("host='localhost' dbname='{}' user='{}' password='{}'".format(dbname, self.username, self.password))
-        self.logger.info('Initialized Database connection to {}'.format(dbname))
+        self.logger.debug('Initialized Database connection to {}'.format(dbname))
 
         return conn
 
@@ -299,7 +299,7 @@ class Utility(Database):
         execString1 = "INSERT INTO subreddit (subreddit_name, sentinel_enabled, redditbot_name, subreddit_subscribers) VALUES (%s, %s, %s, %s)"
         updateString = "UPDATE subreddit SET sentinel_enabled=TRUE, redditbot_name=%s, subreddit_subscribers=%s WHERE subreddit_name=%s"
         with self.utility_conn as conn:
-            with conn.cursor('add_subreddit_get') as c:
+            with conn.cursor() as c:
                 c.execute("SELECT * FROM subreddit WHERE subreddit_name=%s", (subreddit,))
                 fetched = c.fetchone()
         with self.utility_conn as conn:
@@ -424,33 +424,38 @@ class ShadowbanDatabase(Database):
     def get_shadowbanned(self):
         with self.shadowban_conn as conn:
             with conn.cursor() as c:
-                statement = "SELECT subreddit.subreddit_name, botban.username from botban, subreddit where subreddit_id=subreddit.id and subreddit.botban_active=true"
+                statement = "SELECT subreddit.subreddit_name, botban.username from botban, subreddit where subreddit_id=subreddit.id and subreddit.botban_enabled=true"
                 c.execute(statement)
                 fetched = c.fetchall()
         shadowbanned = {}
         if fetched:
             for subreddit, username in fetched:
                 if subreddit in shadowbanned:
-                    shadowbanned[subreddit].add(username)
+                    shadowbanned[subreddit].add(username.lower())
                 else:
-                    shadowbanned[subreddit] = set([username])
+                    shadowbanned[subreddit] = set([username.lower()])
         return shadowbanned
 
     def add_shadowban(self, kwargs):
         #incomplete
+        self.logger.debug("user shadowban arg dict {}".format(kwargs))
         with self.shadowban_conn as conn:
             with conn.cursor() as c:
                 args = []
                 for sub in kwargs['subreddits']:
-                    args.append(c.mogrify("((SELECT id from subreddit where subreddit_name=%(sub)s), %(username)s, %(bannedby)s, %(bannedon)s)"), kwargs, sub=sub)
+                    kwargs['sub'] = sub
+                    args.append(c.mogrify("((SELECT id from subreddit where subreddit_name=%(sub)s), %(username)s, %(bannedby)s, %(bannedon)s)",kwargs))
+                    self.logger.debug("args: {}".format(args))
                 statement = b"INSERT INTO botban (subreddit_id, username, bannedby, bannedon) VALUES " + b','.join(args)
+                self.logger.debug('add_shadowban statement: {}'.format(statement))
+                
                 c.execute(statement)
         return True
 
     def remove_shadowban(self, kwargs):
         with self.shadowban_conn as conn:
             with conn.cursor() as c:
-                statement = "DELETE FROM botban where subreddit_id in (SELECT id from subreddit where subreddit_name=ANY(%(subreddits)s)) AND username=%(username)s"
+                statement = "DELETE FROM botban where subreddit_id in (SELECT id from subreddit where subreddit_name=ANY(cast (%(subreddits)s as citext[]))) AND username=%(username)s"
                 c.execute(statement, kwargs)
         return True
 
