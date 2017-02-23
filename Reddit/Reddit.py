@@ -377,7 +377,10 @@ class SentinelInstance():
                     break
 
     def start(self):
-        self.save_permissions()
+        try:
+            self.save_permissions()
+        except praw.exceptions.APIException:
+            self.logger.error('Reddit HTTP Connection Error')
         while not self.masterClass.killThreads:
             #self.logger.debug('{} | Cycling..'.format(self.me.name))
             try:
