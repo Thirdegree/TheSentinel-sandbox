@@ -322,7 +322,7 @@ class SentinelInstance():
         ok_subs = []
         for sub in subs:
             try:
-                if thing.author in sub.moderator():
+                if thing.author in self.r.subreddit(sub).moderator():
                     ok_subs.append(sub)
             except prawcore.exceptions.Forbidden:
                 pass
@@ -333,7 +333,7 @@ class SentinelInstance():
             'bannedon': datetime.utcfromtimestamp(thing.created_utc),
         }
 
-        if self.shadowban_db.add_shadowban(args):
+        if args['subreddits'] and self.shadowban_db.add_shadowban(args):
             return (args['subreddits'], args['username'])
         return False
 
@@ -348,7 +348,7 @@ class SentinelInstance():
         ok_subs = []
         for sub in subs:
             try:
-                if thing.author in sub.moderator():
+                if thing.author in self.r.subreddit(sub).moderator():
                     ok_subs.append(sub)
             except prawcore.exceptions.Forbidden:
                 pass
@@ -358,7 +358,7 @@ class SentinelInstance():
             'bannedby': str(thing.author),
             'bannedon': datetime.utcfromtimestamp(thing.created_utc),
         }
-        if self.shadowban_db.remove_shadowban(args):
+        if args['subreddits'] and self.shadowban_db.remove_shadowban(args):
             return (args['subreddits'], args['username'])
         return False
 
