@@ -307,6 +307,7 @@ class SentinelInstance():
         return False
 
     def add_user_shadowban(self, thing):
+        
         try:
             regex_subreddits = "r\/(\w*)"
             regex_username = "u\/(\w*)"
@@ -317,8 +318,16 @@ class SentinelInstance():
             return False
         if (not user) or (not subs):
             return False
+
+        ok_subs = []
+        for sub in subs:
+            try:
+                if thing.author in sub.moderator():
+                    ok_subs.append(sub)
+            except prawcore.exceptions.Forbidden:
+                pass
         args = {
-            'subreddits': subs,
+            'subreddits': ok_subs,
             'username': user.group(1),
             'bannedby': str(thing.author),
             'bannedon': datetime.utcfromtimestamp(thing.created_utc),
@@ -329,14 +338,22 @@ class SentinelInstance():
         return False
 
     def remove_user_shadowban(self, thing):
+
         regex_subreddits = "r/(\w*)"
         regex_username = "u/(\w*)"
         subs = re.findall(regex_subreddits, thing.body)
         user = re.search(regex_username, thing.subject)
         if (not user) or (not subs):
             return False
+        ok_subs = []
+        for sub in subs:
+            try:
+                if thing.author in sub.moderator():
+                    ok_subs.append(sub)
+            except prawcore.exceptions.Forbidden:
+                pass
         args = {
-            'subreddits': subs,
+            'subreddits': ok_subs,
             'username': user.group(1),
             'bannedby': str(thing.author),
             'bannedon': datetime.utcfromtimestamp(thing.created_utc),
@@ -352,7 +369,7 @@ class SentinelInstance():
         subreddit = self.r.subreddit(sub_string.group(1))
 
         try:
-            mods = [i for i in subreddit.moderator]
+            mods = [i for i in subreddit.moderator()]
 
             if self.me not in mods:
                 thing.reply(ForbiddenResponse.format(self.getCorrectBot(subreddit)))
@@ -379,7 +396,7 @@ class SentinelInstance():
         subreddit = self.r.subreddit(sub_string.group(1))
 
         try:
-            mods = [i for i in subreddit.moderator]
+            mods = [i for i in subreddit.moderator()]
 
             if self.me not in mods:
                 thing.reply(ForbiddenResponse.format(self.getCorrectBot(subreddit)))
