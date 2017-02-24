@@ -1,7 +1,8 @@
 import praw, re, time, requests, sys, threading
+from datetime import datetime
 from collections import deque
 from ..helpers.responses import *
-from ..helpers import getSentinelLogger, SlackNotifier
+from ..helpers import getSentinelLogger, SlackNotifier, ShadowbanDatabase
 from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..ModmailArchiver import ModmailArchiver
@@ -39,6 +40,7 @@ class SentinelInstance():
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
         self.modmailArchiver = ModmailArchiver(self.r, [str(i) for i in self.subsModded])
         self.edited_done = deque()
+        self.shadowban_db = ShadowbanDatabase()
 
         self.can_global_action = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
 
@@ -73,7 +75,15 @@ class SentinelInstance():
             thing = self.removalQueue.get()
             things = self.r.info([thing.fullname])
             for thing in things:
-                message = self.masterClass.getInfo(thing)
+                try:
+                    message = self.masterClass.getInfo(thing)
+                except KeyError:
+                    message = [{
+                        'media_author': None,
+                        'media_link': None,
+                        'media_channel_id': None,
+                        'media_platform':None,
+                    }]
 
                 if isinstance(thing, praw.models.Submission):
                     perma = thing.shortlink
@@ -85,7 +95,7 @@ class SentinelInstance():
                     item['author'] = str(thing.author)
                     item['subreddit'] = str(thing.subreddit)
                     item['permalink'] = perma
-                    if item['media_author'] not in seen and self.masterClass.isBlacklisted(item['subreddit'], item['media_link']) :
+                    if item['media_author'] not in seen and item['media_author']:
                         self.notifier.send_message(str(thing.subreddit), item)
                         self.notifier.send_message('yt_killer', item)
                         seen.append(item['media_author'])
@@ -202,6 +212,20 @@ class SentinelInstance():
                 except KeyError:
                     pass
 
+            if "add to user shadowban" in message.subject.lower():
+                try:
+                    subreddits, user = self.add_user_shadowban(message)
+                    message.reply("User {} shadowbaned for subs {}".format(user, subreddits))
+                except TypeError:
+                    message.reply("User shadowban failed")
+
+            if "remove from user shadowban" in message.subject.lower():
+                try:
+                    subreddits, user = self.remove_user_shadowban(message)
+                    message.reply("User {} shadowban removed for subs {}".format(user, subreddits))
+                except TypeError:
+                    message.reply("User shadowban failed")
+
             if "add to blacklist" in message.subject.lower():
                 self.addBlacklist(message)
                 continue
@@ -269,8 +293,74 @@ class SentinelInstance():
             self.logger.debug("Adding {} items to cache".format(len(toAdd+editlist)))
             for i in toAdd + editlist:
                 self.logger.debug("Adding {} to cache".format(i.fullname))
-                self.cache.add(i)
+                if self.user_shadowbanned(i):
+                    self.removalQueue.put(i)
+                else:
+                    self.cache.add(i)
         self.masterClass.markProcessed(toAdd)
+
+    def user_shadowbanned(self, thing):
+        if not str(thing.subreddit) in self.shadowbans:
+            return False
+        if str(thing.author).lower() in self.shadowbans[str(thing.subreddit)]:
+            return True
+        return False
+
+    def add_user_shadowban(self, thing):
+        
+        try:
+            regex_subreddits = "r\/(\w*)"
+            regex_username = "u\/(\w*)"
+            subs = re.findall(regex_subreddits, thing.body)
+            user = re.search(regex_username, thing.subject)
+            self.logger.info('{} | Processessing add user shadowban {} for subs {}'.format(self.me, user.group(1), subs))
+        except AttributeError:
+            return False
+        if (not user) or (not subs):
+            return False
+
+        ok_subs = []
+        for sub in subs:
+            try:
+                if thing.author in self.r.subreddit(sub).moderator():
+                    ok_subs.append(sub)
+            except prawcore.exceptions.Forbidden:
+                pass
+        args = {
+            'subreddits': ok_subs,
+            'username': user.group(1),
+            'bannedby': str(thing.author),
+            'bannedon': datetime.utcfromtimestamp(thing.created_utc),
+        }
+
+        if args['subreddits'] and self.shadowban_db.add_shadowban(args):
+            return (args['subreddits'], args['username'])
+        return False
+
+    def remove_user_shadowban(self, thing):
+
+        regex_subreddits = "r/(\w*)"
+        regex_username = "u/(\w*)"
+        subs = re.findall(regex_subreddits, thing.body)
+        user = re.search(regex_username, thing.subject)
+        if (not user) or (not subs):
+            return False
+        ok_subs = []
+        for sub in subs:
+            try:
+                if thing.author in self.r.subreddit(sub).moderator():
+                    ok_subs.append(sub)
+            except prawcore.exceptions.Forbidden:
+                pass
+        args = {
+            'subreddits': ok_subs,
+            'username': user.group(1),
+            'bannedby': str(thing.author),
+            'bannedon': datetime.utcfromtimestamp(thing.created_utc),
+        }
+        if args['subreddits'] and self.shadowban_db.remove_shadowban(args):
+            return (args['subreddits'], args['username'])
+        return False
 
     def addBlacklist(self, thing):
         sub_string = re.search(self.subextractor, thing.subject)
@@ -279,7 +369,7 @@ class SentinelInstance():
         subreddit = self.r.subreddit(sub_string.group(1))
 
         try:
-            mods = [i for i in subreddit.moderator]
+            mods = [i for i in subreddit.moderator()]
 
             if self.me not in mods:
                 thing.reply(ForbiddenResponse.format(self.getCorrectBot(subreddit)))
@@ -306,7 +396,7 @@ class SentinelInstance():
         subreddit = self.r.subreddit(sub_string.group(1))
 
         try:
-            mods = [i for i in subreddit.moderator]
+            mods = [i for i in subreddit.moderator()]
 
             if self.me not in mods:
                 thing.reply(ForbiddenResponse.format(self.getCorrectBot(subreddit)))
@@ -385,6 +475,7 @@ class SentinelInstance():
             #self.logger.debug('{} | Cycling..'.format(self.me.name))
             try:
                 self.masterClass.done = set(self.masterClass.isProcessed(self.subsModded))
+                self.shadowbans = self.shadowban_db.get_shadowbanned()
                 #self.modMulti = self.r.subreddit('mod')
 
                 self.checkContent()

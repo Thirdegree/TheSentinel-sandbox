@@ -3,7 +3,6 @@ import requests, json
 import os
 from ...const import __version__, __app_name__
 
-
 LoggerConfigLocation = 'TheSentinel\helpers\SentinelLogger\_Logger_Config.json'
 with open(LoggerConfigLocation, 'rt') as f:
     config = json.load(f)
