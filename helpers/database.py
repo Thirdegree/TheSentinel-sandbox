@@ -5,11 +5,13 @@ import os
 from .SentinelLogger import getSentinelLogger
 
 Config = configparser.ConfigParser()
-Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
+mydir = os.path.dirname(os.path.abspath(__file__))
+Config.read(os.path.join(mydir, '..', "global_config.ini"))
 
 defaultun = Config.get('Database', 'Username')
 defaultpass = Config.get('Database', 'Password')
 defaultdbnam = 'Zion'
+serverhost = 'localhost' # localhost for local or 162.252.84.50 for remote
 
 class Database(object):
     def __init__(self, username=defaultun, password=defaultpass):
@@ -20,8 +22,8 @@ class Database(object):
         
         super(Database, self).__init__()
 
-    def get_conn(self, dbname = defaultdbnam):
-        conn = psycopg2.connect("host='localhost' dbname='{}' user='{}' password='{}'".format(dbname, self.username, self.password))
+    def get_conn(self, dbname=defaultdbnam):
+        conn = psycopg2.connect("host='{host}' dbname='{dbname}' user='{username}' password='{password}'".format(host=serverhost, dbname=dbname, username=self.username, password=self.password))
         self.logger.info('Initialized Database connection to {}'.format(dbname))
 
         return conn
@@ -299,7 +301,7 @@ class Utility(Database):
         execString1 = "INSERT INTO subreddit (subreddit_name, sentinel_enabled, redditbot_name, subreddit_subscribers) VALUES (%s, %s, %s, %s)"
         updateString = "UPDATE subreddit SET sentinel_enabled=TRUE, redditbot_name=%s, subreddit_subscribers=%s WHERE subreddit_name=%s"
         with self.utility_conn as conn:
-            with conn.cursor('add_subreddit_get') as c:
+            with conn.cursor() as c:
                 c.execute("SELECT * FROM subreddit WHERE subreddit_name=%s", (subreddit,))
                 fetched = c.fetchone()
         with self.utility_conn as conn:

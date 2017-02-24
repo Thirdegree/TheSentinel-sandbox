@@ -119,8 +119,12 @@ class TheSentinel(object):
         #subs = sorted(subs, key=lambda x: x[1], reverse=True)  # by size
         subs = list(set([str(i[0]) for i in subs]))
         subs = sorted(subs, key=str.lower)    # alphabetically
-        with open('C:\\inetpub\\wwwroot\\Layer7.Solutions\\resources\\TheSentinelSubs.txt', 'w') as file:    
-            file.write("\n".join(subs))
+        try:
+            with open('C:\\inetpub\\wwwroot\\Layer7.Solutions\\resources\\TheSentinelSubs.txt', 'w') as file:    
+                file.write("\n".join(subs))
+        except Exception as e:
+            self.logger.warning('Unable to locate TheSentinelSubs file')
+            
 
     def remove_subreddit(self, subreddit):
         pass
@@ -194,8 +198,11 @@ class TheSentinel(object):
             hasContent = 1
             self.logger.debug(u'Checking blacklist for {} | URL: {}'.format(thing.fullname, url))
             if self.isBlacklisted(str(thing.subreddit), url):
-                return 2, thing
-        return hasContent, None
+                return 2, thing, urls
+            else:
+                # is media item but not blacklisted
+                return 1, thing, urls
+        return hasContent, None, None
 
     def isBlacklisted(self, subreddit, url):
         for i, k in self.processes.items():
@@ -380,12 +387,15 @@ class TheSentinel(object):
             try:
                 for item in self.get_items():
                     try:
-                        level, thing = self.needsRemoval(item)
+                        level, thing, urls = self.needsRemoval(item)
                     except requests.exceptions.HTTPError:
                         continue
                     if level == 2:
+                        # Normal TSB removal due to being on the blacklist
                         self.remove(thing)
-                #time.sleep(10) #why lol
+                    #if level == 1:
+                        # Not on blacklist, asking Dirtbag if it should be removed
+                        # self.AskDirtbag(thing, urls)
 
             except KeyboardInterrupt:
                 self.logger.warning(u"Keyboard Interrrupt - exiting")
