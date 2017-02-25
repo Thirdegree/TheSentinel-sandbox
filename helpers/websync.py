@@ -3,6 +3,7 @@ import time
 
 from .database import ModloggerDB
 from .SentinelLogger import getSentinelLogger
+from ..const import WEBSYNC_API_PATH
 
 class Websync(object):
     def __init__(self, masterClass): #sentinels is a list of agents
@@ -10,13 +11,6 @@ class Websync(object):
         self.logger = getSentinelLogger()
 
         self.masterClass = masterClass
-        self.synccalls = {
-            'tsbaccept': "http://beta.layer7.solutions/admin/resync?type=tsbaccept&subreddit={subreddit}",
-            'addmoderator': "http://beta.layer7.solutions/admin/resync?type=addmoderator&subreddit={subreddit}&moderator={target}",
-            'acceptmoderatorinvite': "http://beta.layer7.solutions/admin/resync?type=acceptmoderatorinvite&subreddit={subreddit}&moderator={mod}",
-            'removemoderator': "http://beta.layer7.solutions/admin/resync?type=removemoderator&subreddit={subreddit}&moderator={target}",
-            'setpermissions': "http://beta.layer7.solutions/admin/resync?type=setpermissions&subreddit={subreddit}&moderator={target}&new_state={new_state}",
-            }
         self.sentinels = [i[0] for i in self.masterClass.sentinels] #don't need the queues
         self.logger.info("Websync Thread Started")
 
@@ -24,7 +18,7 @@ class Websync(object):
         return self.db.get_unprocessed()
 
     def ping_accept(self, subreddit):
-        requests.get(self.synccalls['tsbaccept'].format(subreddit=subreddit))
+        requests.get(WEBSYNC_API_PATH['tsbaccept'].format(subreddit=subreddit))
 
     def process(self, unprocessed):
         if unprocessed:
@@ -42,7 +36,7 @@ class Websync(object):
 
                             item['new_state'] = new_state
                             self.logger.debug("{} | New state is {} ".format('Websync', item['new_state']))
-                url = self.synccalls[item['action']].format(**item)
+                url = WEBSYNC_API_PATH[item['action']].format(**item)
                 self.logger.debug("{} | Calling url: {}".format('Websync', url))
                 requests.get(url)
                 self.logger.info("{} | Processed {} action on {}".format('Websync', item['action'], item['mod'] if item['action'] == 'acceptmoderatorinvite' else item['target']))
