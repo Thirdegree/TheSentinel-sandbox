@@ -198,10 +198,10 @@ class Blacklist(Database):
             
             self.logger.debug("Added {} items to the reddit_thing database, and {} items to the media_info database.".format(args1len, args2len))
 
-    def markActioned(self, thingid):
+    def markActioned(self, thingid, type_of):
         with self.blacklist_conn as conn:
             with conn.cursor() as c:
-                c.execute("UPDATE sentinel_actions SET removed=true, action_utc=now() where thing_id=%s and removed=false", (thingid,))
+                c.execute("UPDATE sentinel_actions SET removed=true, removal_type=%s, action_utc=now() where thing_id=%s and removed=false", (type_of, thingid,))
 
     """
     def next_value(self):

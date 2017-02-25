@@ -101,7 +101,7 @@ class SentinelInstance():
                         seen.append(item['media_author'])
 
                 thing.subreddit.mod.remove(thing) # https://www.reddit.com/r/redditdev/comments/5h2r1c/-/daxk71u/
-                self.masterClass.markActioned(thing)
+                self.masterClass.markActioned(thing, type_of='tsb')
                 processed.append(thing.fullname)
         if processed:
             self.logger.info('{} | Removed items: {}'.format(self.me, processed))
@@ -291,13 +291,17 @@ class SentinelInstance():
 
         if (toAdd + editlist):
             self.logger.debug("Adding {} items to cache".format(len(toAdd+editlist)))
+            shadowbanned = []
             for i in toAdd + editlist:
                 self.logger.debug("Adding {} to cache".format(i.fullname))
                 if self.user_shadowbanned(i):
                     self.removalQueue.put(i)
+                    shadowbanned.append(i)
                 else:
                     self.cache.add(i)
         self.masterClass.markProcessed(toAdd)
+        for thing in shadowbanned:
+            self.masterClass.markActioned(thing, type_of='botban')
 
     def user_shadowbanned(self, thing):
         if not str(thing.subreddit) in self.shadowbans:
