@@ -271,8 +271,8 @@ class TheSentinel(object):
             self.logger.debug(u"Prepared item {}".format(thing.fullname))
         self.database.markProcessed(toDo)
 
-    def markActioned(self, thing):
-        self.database.markActioned(thing.fullname)
+    def markActioned(self, thing, type_of):
+        self.database.markActioned(thing.fullname, type_of)
 
     def markUsers(self, things): #[(contentCreator, things)]
         toDo = []

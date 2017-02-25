@@ -24,7 +24,7 @@ class Database(object):
 
     def get_conn(self, dbname=defaultdbnam):
         conn = psycopg2.connect("host='{host}' dbname='{dbname}' user='{username}' password='{password}'".format(host=serverhost, dbname=dbname, username=self.username, password=self.password))
-        self.logger.info('Initialized Database connection to {}'.format(dbname))
+        self.logger.debug('Initialized Database connection to {}'.format(dbname))
 
         return conn
 

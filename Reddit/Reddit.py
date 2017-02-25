@@ -288,10 +288,10 @@ class SentinelInstance():
                 self.logger.debug("{} | Added spam to toAdd - {}".format(self.me, spam.fullname))                
                 toAdd.append(spam)
                 self.masterClass.done.add(spam.fullname)
-
+        shadowbanned = []
         if (toAdd + editlist):
             self.logger.debug("Adding {} items to cache".format(len(toAdd+editlist)))
-            shadowbanned = []
+            
             for i in toAdd + editlist:
                 self.logger.debug("Adding {} to cache".format(i.fullname))
                 if self.user_shadowbanned(i):
