@@ -1,6 +1,6 @@
-*oAuth.py
 *oauth.py
 *.pyc
 *.ini
 __pycache__
 *.sublime*
+.DS_Store

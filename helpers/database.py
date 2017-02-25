@@ -5,11 +5,13 @@ import os
 from .SentinelLogger import getSentinelLogger
 
 Config = configparser.ConfigParser()
-Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
+mydir = os.path.dirname(os.path.abspath(__file__))
+Config.read(os.path.join(mydir, '..', "global_config.ini"))
 
 defaultun = Config.get('Database', 'Username')
 defaultpass = Config.get('Database', 'Password')
 defaultdbnam = 'Zion'
+serverhost = 'localhost' # localhost for local or 162.252.84.50 for remote
 
 class Database(object):
     def __init__(self, username=defaultun, password=defaultpass):
@@ -20,9 +22,9 @@ class Database(object):
         
         super(Database, self).__init__()
 
-    def get_conn(self, dbname = defaultdbnam):
-        conn = psycopg2.connect("host='localhost' dbname='{}' user='{}' password='{}'".format(dbname, self.username, self.password))
-        self.logger.debug('Initialized Database connection to {}'.format(dbname))
+    def get_conn(self, dbname=defaultdbnam):
+        conn = psycopg2.connect("host='{host}' dbname='{dbname}' user='{username}' password='{password}'".format(host=serverhost, dbname=dbname, username=self.username, password=self.password))
+        self.logger.info('Initialized Database connection to {}'.format(dbname))
 
         return conn
 

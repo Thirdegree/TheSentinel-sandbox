@@ -1,19 +1,15 @@
 import logging, logging.config
 import requests, json
 import os
-
-BotName="TheSentinelBot" 
-APP_VERS="1.2.0"
-
-
+from ...const import __version__, __app_name__
 
 LoggerConfigLocation = 'TheSentinel\helpers\SentinelLogger\_Logger_Config.json'
 with open(LoggerConfigLocation, 'rt') as f:
     config = json.load(f)
 
 # Replaces the filename with one specific to each bot
-config['handlers']['rotateFileHandler']['filename'] = "logs\\_BotName__Logs.log".replace('_BotName_', BotName)
-config['handlers']['rotateFileHandler_debug']['filename'] = "logs\\_BotName__Logs_Debug.log".replace('_BotName_', BotName)
+config['handlers']['rotateFileHandler']['filename'] = "logs\\_BotName__Logs.log".replace('_BotName_', __app_name__)
+config['handlers']['rotateFileHandler_debug']['filename'] = "logs\\_BotName__Logs_Debug.log".replace('_BotName_', __app_name__)
 
 logging.config.dictConfig(config)
 logger = logging.getLogger("root")
@@ -24,8 +20,8 @@ class ContextFilter(logging.Filter):
     """
     def filter(self, record):
 
-        record.BotName = BotName
-        record.APP_VERS = APP_VERS
+        record.BotName = __app_name__
+        record.APP_VERS = __version__
         return True
 
 def getSentinelLogger():

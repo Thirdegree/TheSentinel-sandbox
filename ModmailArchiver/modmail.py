@@ -87,9 +87,7 @@ class ModmailArchiver(object):
         arg_dicts = self.gather_items(limit)
         logged = self.db.log_items(arg_dicts)
         if (not limit) and author:
+            self.logger.info("{} | Force Mod Mail History complete for {}, {} inserted".format(self, self.subs_intersec, logged))
             self.r.redditor(author).message('Force Modmail History Results', 'Finished for {}, {} inserted'.format(self.subs_intersec, logged))
-            self.logger.info("Force Mod Mail History complete for {}, {} inserted".format(self.subs_intersec, logged))
         elif logged:
             self.logger.info('{me} | Processed {amount} Modmail things'.format(me=self.me, amount=logged))
-        else:
-            pass

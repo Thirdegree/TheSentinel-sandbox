@@ -2,6 +2,7 @@ import configparser
 import os
 import re
 import memcache # https://pypi.python.org/pypi/python-memcached
+#import pylibmc # https://github.com/lericson/pylibmc
 from memcached_stats import MemcachedStats # https://github.com/dlrust/python-memcached-stats
 import tweepy
 
@@ -11,7 +12,8 @@ import requests
 from ..helpers import Zion, getSentinelLogger, TheTraveler, Utility
 from ..exceptions import InvalidAddition
 
-
+# Memcache Server Host
+serverhost = '127.0.0.1' # 127.0.0.1 for local or 162.252.84.50 for remote
 
 class MediaProcess(object):
     def __init__(self, APIProcess, mediaURLs):
@@ -134,7 +136,8 @@ class TwitterAPIProcess(APIProcess):
 
 
         Config = configparser.ConfigParser()
-        Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
+        mydir = os.path.dirname(os.path.abspath(__file__))
+        Config.read(os.path.join(mydir, '..', "global_config.ini"))
         consumer_key = Config.get('TwitterAPI', 'CONSUMER_KEY')
         consumer_secret = Config.get('TwitterAPI', 'CONSUMER_SECRET')
         access_token = Config.get('TwitterAPI', 'ACCESS_TOKEN')
@@ -202,7 +205,8 @@ class TwitchAPIProcess(APIProcess):
         }
 
         Config = configparser.ConfigParser()
-        Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
+        mydir = os.path.dirname(os.path.abspath(__file__))
+        Config.read(os.path.join(mydir, '..', "global_config.ini"))
         api_key = Config.get('TwitchAPI', 'AUTH_KEY')
         
 
@@ -232,7 +236,8 @@ class GAPIProcess(APIProcess):
         }
 
         Config = configparser.ConfigParser()
-        Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
+        mydir = os.path.dirname(os.path.abspath(__file__))
+        Config.read(os.path.join(mydir, '..', "global_config.ini"))
         api_key = Config.get('GAPI', 'AUTH_KEY')
 
         self.logger.debug('Running GAPI Datapull')
@@ -310,7 +315,8 @@ class VMOAPIProcess(APIProcess):
         super(VMOAPIProcess, self).__init__(VIMEO_URLS, regexs, datapulls.VMOpulls)
 
         Config = configparser.ConfigParser()
-        Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
+        mydir = os.path.dirname(os.path.abspath(__file__))
+        Config.read(os.path.join(mydir, '..', "global_config.ini"))
 
         api_key = Config.get('VIMEO', 'AUTH_KEY')
         self.headers = {"Authorization": "Bearer " + api_key}
@@ -353,7 +359,8 @@ class SCAPIProcess(APIProcess):
         super(SCAPIProcess, self).__init__(SOUNDCLOUD_URLS, regexs, datapulls.SCpulls)
 
         Config = configparser.ConfigParser()
-        Config.read(os.path.join(os.path.dirname(__file__), "Config.ini"))
+        mydir = os.path.dirname(os.path.abspath(__file__))
+        Config.read(os.path.join(mydir, '..', "global_config.ini"))
 
         api_key = Config.get('SOUNDCLOUD', 'AUTH_KEY')
         self.api_key = api_key
@@ -390,7 +397,7 @@ class SentinelDatabase(Zion, TheTraveler):
     pass
 
 class Memcache(object):
-    def __init__(self, server_address='127.0.0.1', server_port=11211):
+    def __init__(self, server_address=serverhost, server_port=11211):
         # Initialize the logger
         self.logger = getSentinelLogger()
 
