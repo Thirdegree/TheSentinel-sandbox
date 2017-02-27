@@ -10,6 +10,9 @@ class ModmailArchiver(object):
         self.db = ModmailArchiverDB()
         self.subs = subs
 
+    def __str__(self):
+        return  "Modmail ({})".format(self.me)
+
     @property
     def opt_ins(self):
         return [i.lower() for i in self.db.get_subs_enabled()]
