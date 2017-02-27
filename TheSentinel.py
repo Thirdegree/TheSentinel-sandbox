@@ -20,7 +20,7 @@ from .objects import Memcache, SentinelDatabase
 from .oAuths import oAuth
 from .Reddit import SentinelInstance
 from .exceptions import TooFrequent
-
+from .RabbitMQ import Rabbit_Producer, Rabbit_Consumer
 
 class TheSentinel(object):
     def __init__(self):
@@ -49,6 +49,9 @@ class TheSentinel(object):
         self.cache = Memcache()
         self.database = SentinelDatabase()
         self.utility = Utility()
+        # Initializes the Dirtbag Rabbit Producer
+        self.dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToProcess', heartbeat_interval=21600)
+
         self.blacklistSub = 'TheSentinelBot'
 
         #must be added to manually until I find a better solution
@@ -379,6 +382,14 @@ class TheSentinel(object):
         for i in self.cache.get_new('marco_thesentinelbot'):
             self.cache.add_polo()
 
+    def send_to_dirtbag(self, thing, urls):
+        # TODO
+        # - Create JSON object from the URLs
+        # - Append the thing data that's relevant
+        # - Send each URL in a separate request
+        #
+        #self.dirtbagProducer.send('test message')
+
     def main(self):
         self.startThreads()
         self.writeSubs()
@@ -395,7 +406,7 @@ class TheSentinel(object):
                         self.remove(thing)
                     #if level == 1:
                         # Not on blacklist, asking Dirtbag if it should be removed
-                        # self.AskDirtbag(thing, urls)
+                        # self.send_to_dirtbag(thing, urls)
 
             except KeyboardInterrupt:
                 self.logger.warning(u"Keyboard Interrrupt - exiting")
