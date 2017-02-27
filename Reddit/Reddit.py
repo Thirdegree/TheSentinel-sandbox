@@ -189,7 +189,7 @@ class SentinelInstance():
             if message.body.startswith('**gadzooks!'):
                 self.acceptModInvite(message)
                 self.save_permissions(str(message.subreddit))
-                self.forceModlogHistory("r/" + str(message.subreddit))
+                self.forceModlogHistory("r/" + str(message.subreddit), None)
                 self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
                 self.masterClass.websync.ping_accept(str(message.subreddit))
                 continue
@@ -426,22 +426,22 @@ class SentinelInstance():
                 message.reply("You already have an active Sentinel account. We appreciate the enthusiasm, though!\n\nIf you recently removed an old Sentinel account, please wait ~5 minutes to add a new one to allow for processing time.")
                 message.mark_read()
                 self.logger.info(u'Bot already mods /r/{}'.format(message.subreddit))
-            elif message.subreddit.lower() in self.blacklisted_subs:
+            elif message.subreddit.display_name.lower() in self.blacklisted_subs:
                 message.reply("No.")
                 message.mark_read()
-            elif self.subCount + self.r.subreddit(message.subreddit).subscribers <= self.subscriberLimit:
-                self.r.subreddit(message.subreddit).mod.accept_invite()
+            elif self.subCount + message.subreddit.subscribers <= self.subscriberLimit:
+                message.subreddit.mod.accept_invite()
                 message.mark_read()
-                self.subsModded.append(self.r.subreddit(message.subreddit))
+                self.subsModded.append(message.subreddit)
                 self.logger.info(u'{} | Accepted mod invite for /r/{}'.format(self.me, message.subreddit))
                 self.logger.info(u'{} | Now mods {} users'.format(self.me, self.subCount))
                 
-                self.masterClass.add_subreddit(str(message.subreddit), str(self.me), self.r.subreddit(message.subreddit).subscribers)
+                self.masterClass.add_subreddit(str(message.subreddit), str(self.me), message.subreddit.subscribers)
                 self.masterClass.writeSubs()
             else:
                 self.logger.info(u'{} | Bot at capacity'.format(self.me))
                 message.reply(CurrentInstanceOverloaded)
-                self.r.subreddit(message.subreddit).moderator.leave()
+                message.subreddit.moderator.leave()
 
                 message.mark_read()
         except praw.exceptions.APIException:
@@ -451,7 +451,7 @@ class SentinelInstance():
             self.logger.error(u'Client Error Accepting Mod Invite for sub {}'.format(message.subreddit))
             #message.mark_read()
         except:
-            self.logger.error(u'General Error Accepting Mod Invite')
+            self.logger.critical(u'General Error Accepting Mod Invite: {}'.format(message.name))
             message.mark_read()
 
     def getCorrectBot(self, subreddit):
