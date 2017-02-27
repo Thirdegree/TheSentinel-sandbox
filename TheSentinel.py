@@ -108,7 +108,7 @@ class TheSentinel(object):
         for sentinel, _ in self.sentinels:
             sentinel.forceModlogHistory(body, author)
 
-    def forceModMailHistory(self, body):
+    def forceModMailHistory(self, body, author):
         for sentinel, _ in self.sentinels:
             sentinel.forceModMailHistory(body, author)
 
