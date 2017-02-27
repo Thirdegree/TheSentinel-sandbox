@@ -42,6 +42,8 @@ class Websync(object):
                 self.logger.info("{} | Processed {} action on {}".format('Websync', item['action'], item['mod'] if item['action'] == 'acceptmoderatorinvite' else item['target']))
             except KeyError:
                 pass
+            except:
+                self.logger.error('Websync | Unable to set permissions for: {} in sub: {}'.format(item['target'], item['subreddit']))
             finally:
                 done.append(item['modactionid'])
                 actions.append(item['action'])

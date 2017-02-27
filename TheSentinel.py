@@ -127,11 +127,9 @@ class TheSentinel(object):
             
 
     def remove_subreddit(self, subreddit):
-        pass
         self.utility.remove_subreddit(subreddit)
 
     def add_subreddit(self, subreddit, botname, subscribers, thing=None):
-        pass
         if not thing:
             self.utility.add_subreddit(subreddit, botname, subscribers)
         else:
@@ -139,7 +137,6 @@ class TheSentinel(object):
             return (thing, subscribers)
 
     def save_sentinel_permissions(self, permissions, subreddit):
-        pass
         self.utility.update_permissions(permissions, subreddit)
         self.logger.info('Updated permissions for: {} | Perms: {}'.format(subreddit, permissions))
 

@@ -77,7 +77,8 @@ class ModLogger(object):
         self.logger.debug("{} | Added {} items to modlog".format(self, len(arg_dicts)))
         if (not limit) and self.subs_intersec:
             self.logger.info("{} | Force Modlog History complete for {}, {} updated/inserted".format(self, self.subs_intersec, logged))
-            self.r.redditor(author).message('Force Modlog History Results', 'Finished for {}, {} updated/inserted'.format(self.subs_intersec, logged))
+            if author:
+                self.r.redditor(author).message('Force Modlog History Results', 'Finished for {}, {} updated/inserted'.format(self.subs_intersec, logged))
         elif logged:
             self.logger.info('{me} | Processed {amount} Modlog things'.format(me=self, amount=logged))
 
