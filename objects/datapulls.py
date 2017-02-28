@@ -3,16 +3,19 @@ GAPIpulls = {
         'media_author': (i['snippet']['channelTitle']),
         'media_channel_id': str(i['snippet']['channelId']),
         'media_platform': 'YouTube',
+        'media_id': str(i['id']),
         } for i in x['items']]),
     'playlist': (lambda x: [{
         'media_author': (i['snippet']['channelTitle']),
         'media_channel_id': str(i['snippet']['channelId']),
         'media_platform': 'YouTube',
+        'media_id': str(i['id']),
         } for i in x['items']]),
     'playlist videos': (lambda x: [{
         'media_author': (i['snippet']['channelTitle']),
         'media_channel_id': str(i['snippet']['channelId']),
         'media_platform': 'YouTube',
+        'media_id': str(i['id']),
         } for i in x['items']]),
     'username': (lambda x: [{
         'media_author': (i['snippet']['title']),

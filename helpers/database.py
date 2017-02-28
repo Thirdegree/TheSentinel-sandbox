@@ -44,7 +44,7 @@ class Blacklist(Database):
 
         if subreddit.lower() == 'videos':
             self.logger.debug(u'READ ONLY sub: {} | ChanID: {} | MediaPlatform: {}'.format(subreddit, media_channel_id, media_platform))
-            return False
+            return False, media_platform
         """
         if media_author:
             self.c.execute("SELECT * FROM thesentinel_view WHERE (lower(subreddit)=lower(%s) OR subreddit='YT_Killer' OR subreddit='TheSentinelBot') AND media_author=%s AND removed!=true and blacklisted=true", (subreddit, media_author))
@@ -67,21 +67,22 @@ class Blacklist(Database):
                     try:
                         fetched = c.fetchone()
                     except psycopg2.ProgrammingError:
-                        return False            
+                        return False, media_platform           
             if fetched:
                 self.logger.info(u'Media Channel Blacklisted. Sub: {} | Media_Author: {} | MediaPlatform: {}'.format(subreddit, media_author, media_platform))
                 return True
         self.logger.debug(u'Channel not blacklisted. Sub: {} | ChanID: {} | MediaAuth: {}'.format(subreddit, media_channel_id, media_author))
-        return False
+        return False, media_platform
         
     def addBlacklist(self, kwargs):
         if "media_channel_id" not in kwargs:
             self.logger.warning('No channel_id provided')
             raise RuntimeError("No channel_id provided")
         subreddit = kwargs['subreddit']
-        if self.isBlacklisted(subreddit, media_channel_id=kwargs['media_channel_id']):
-            self.logger.debug(u'Channel already blacklisted: ChanID: {}'.format(kwargs['media_channel_id']))
-            return True
+        blacklisted, media_platform = self.isBlacklisted(subreddit, media_channel_id=kwargs['media_channel_id']):
+            if blacklisted:
+                self.logger.debug(u'Channel already blacklisted: ChanID: {}'.format(kwargs['media_channel_id']))
+                return True
         try:
             subreddit_id = "SELECT id FROM subreddit WHERE subreddit_name='%s'"%subreddit
             media_platform_id = "SELECT id FROM media_platform WHERE platform_name='%s'"%kwargs['media_platform']
@@ -100,8 +101,9 @@ class Blacklist(Database):
         if (not media_author) and (not media_channel_id):
             self.logger.warning(u'No video provided')
             raise RuntimeError("No video provided")
-        if not self.isBlacklisted(subreddit, media_author, media_channel_id):
-            return True
+        blacklisted, media_platform = self.isBlacklisted(subreddit, media_author, media_channel_id):
+            if not blacklisted:
+                return True
         kwargs = {
             'media_channel_id':media_channel_id,
             'author': author,

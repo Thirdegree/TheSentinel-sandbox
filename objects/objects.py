@@ -37,17 +37,18 @@ class MediaProcess(object):
     def hasBlacklisted(self, subreddit, url):
         if not self.validateURL(url):
             self.logger.debug('Not valid media URL')
-            return False
+            return False, None, None
         try:
             channels = self.APIProcess.getInformation(url)
         except requests.exceptions.HTTPError:
             self.logger.warning("No information found for url - {}".format(url))
-            return False
+            return False, None, None
         for i in channels:
-            if self.db.isBlacklisted(subreddit, **i):
+            blacklisted, media_platform = self.db.isBlacklisted(subreddit, **i):
+            if blacklisted:
                 self.logger.debug('Channel is Blacklisted. URL: {}'.format(url))
-                return True
-        return False
+                return True, i, media_platform
+        return False, channels, media_platform
 
     def addToBlacklist(self, subreddit, url, playlist=False):
         if not self.validateURL(url):
@@ -223,9 +224,9 @@ class GAPIProcess(APIProcess):
 
         GAPI_URLS = {
             'channel': 'https://www.googleapis.com/youtube/v3/channels?part=snippet&id={}&fields=items(id%2Csnippet%2Ftitle)&key={}', #GOOD,
-            'video': 'https://www.googleapis.com/youtube/v3/videos?part=snippet&id={}&fields=items(snippet(channelId%2CchannelTitle))&key={}', #GOOD
-            'playlist': 'https://www.googleapis.com/youtube/v3/playlists?part=snippet&id={}&fields=items(snippet(channelId%2CchannelTitle))&key={}', # GOOD
-            'playlist videos': 'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId={}&fields=items(contentDetails%2FvideoId%2Csnippet(channelId%2CchannelTitle))&key={}', #GOOD
+            'video': 'https://www.googleapis.com/youtube/v3/videos?part=snippet&id={}&fields=items(snippet(channelId%2CchannelTitle)%2Cid)&key={}', #GOOD
+            'playlist': 'https://www.googleapis.com/youtube/v3/playlists?part=snippet&id={}&fields=items(snippet(channelId%2CchannelTitle)%2Cid)&key={}', # GOOD
+            'playlist videos': 'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId={}&fields=items(contentDetails%2FvideoId%2Csnippet(channelId%2CchannelTitle)%2Cid)&key={}', #GOOD
             'username': 'https://www.googleapis.com/youtube/v3/channels?part=snippet&forUsername={}&fields=items(id%2Csnippet%2Ftitle)&key={}' #GOOD}
         }
         regexs = {

@@ -197,21 +197,24 @@ class TheSentinel(object):
         for url in urls:
             hasContent = 1
             self.logger.debug(u'Checking blacklist for {} | URL: {}'.format(thing.fullname, url))
-            if self.isBlacklisted(str(thing.subreddit), url):
-                return 2, thing, urls
+            blacklisted, channel, media_platform = self.isBlacklisted(str(thing.subreddit), url):
+                if blacklisted:
+                    return 2, channel, thing, media_platform
             else:
                 # is media item but not blacklisted
-                return 1, thing, urls
-        return hasContent, None, None
+                return 1, channel, thing, media_platform
+        return hasContent, None, None, None
 
     def isBlacklisted(self, subreddit, url):
+        channel = None
         for i, k in self.processes.items():
             try:
-                if k.hasBlacklisted(subreddit, url):
-                    return True
+                blacklisted, channel, media_platform = k.hasBlacklisted(subreddit, url):
+                    if blacklisted:
+                        return True, channel, media_platform
             except requests.exceptions.SSLError:
                 continue
-        return False
+        return False, channel, media_platform
 
     def isProcessed(self, subreddits):
 
@@ -235,7 +238,7 @@ class TheSentinel(object):
                 'subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
                 'author': str(thing.author),
-                'thingcreated_utc': datetime.utcfromtimestamp( thing.created_utc),
+                'thingcreated_utc': datetime.utcfromtimestamp(thing.created_utc),
                 'thingedited_utc': datetime.utcfromtimestamp(thing.edited) if thing.edited else None,
                 'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
                 'permalink': link,
@@ -379,13 +382,36 @@ class TheSentinel(object):
         for i in self.cache.get_new('marco_thesentinelbot'):
             self.cache.add_polo()
 
-    def send_to_dirtbag(self, thing, urls):
+    def send_to_dirtbag(self, channels, thing):
         # TODO
-        # - Create JSON object from the URLs
-        # - Append the thing data that's relevant
+        # - In datapulls.py set media_id to None for when there is none
+        # - Make sure iterating through 'channels' correctly for singular vs multiple
+        # - Only send to dirtbag if there is a media_id to process (or dirtbag can lookup stats via channel ids?)
         # - Send each URL in a separate request
         #
-        #self.dirtbagProducer.send('test message')
+
+        try:
+            for chan in channels:
+
+                temp = {
+                    'ThingID': thing.fullname,
+                    'Subreddit': thing.subreddit.display_name,
+                    'Author':{
+                        'Name': thing.author.name,
+                        'Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
+                        'CommentKarma': thing.author.comment_karma,
+                        'LinkKarma': thing.author.link_karma
+                    },
+                    'EntryTime': str(datetime.utcfromtimestamp(thing.created_utc)),
+                    'MediaID': chan['media_id'],
+                    'MediaChannelID' : chan['media_channel_id'],
+                    'MediaChannelName' : chan['media_author'],
+                    'MediaPlatform' : chan['media_platform']
+                    }
+                json_data = json.dumps(temp)
+            #self.dirtbagProducer.send(json_data)
+        except Exception:
+            self.logger.error('Unable to send data to Dirtbag')
 
     def main(self):
         self.startThreads()
@@ -395,7 +421,7 @@ class TheSentinel(object):
             try:
                 for item in self.get_items():
                     try:
-                        level, thing, urls = self.needsRemoval(item)
+                        level, channels, thing, media_platform = self.needsRemoval(item)
                     except requests.exceptions.HTTPError:
                         continue
                     if level == 2:
@@ -403,7 +429,7 @@ class TheSentinel(object):
                         self.remove(thing)
                     #if level == 1:
                         # Not on blacklist, asking Dirtbag if it should be removed
-                        # self.send_to_dirtbag(thing, urls)
+                        # self.send_to_dirtbag(channels, thing, media_platform)
 
             except KeyboardInterrupt:
                 self.logger.warning(u"Keyboard Interrrupt - exiting")

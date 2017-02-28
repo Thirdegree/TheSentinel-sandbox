@@ -1,18 +1,35 @@
 import sys, threading
 import pika
+import configparser
+
 from multiprocessing import Queue
 from ..helpers import getSentinelLogger
+
+Config = configparser.ConfigParser()
+mydir = os.path.dirname(os.path.abspath(__file__))
+Config.read(os.path.join(mydir, '..', "global_config.ini"))
+
+defaultuname = Config.get('RabbitMQ', 'Username')
+defaultpass  = Config.get('RabbitMQ', 'Password')
 
 # Support Docs: https://www.rabbitmq.com/amqp-0-9-1-reference.html
 
 class Rabbit_Consumer():
-    def __init__(self, exchange, routing_key, durable=True, exclusive=False, auto_delete=False, heartbeat_interval=21600):
+    def __init__(self, exchange, routing_key, durable=True, exclusive=False, auto_delete=False, host='localhost'):
         self.logger = getSentinelLogger()
         self.exchange = exchange
         self.routing_key = routing_key
         self.processQueue = Queue()
 
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(heartbeat_interval=heartbeat_interval, host='localhost'))
+        credentials = pika.PlainCredentials(defaultuname, defaultpass)
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+                    host=host,
+                    port=5672,
+                    virtual_host='/',
+                    credentials=credentials,
+                    heartbeat_interval=30,
+                    socket_timeout=5))
+
         self.channel = self.connection.channel()
         self.channel.exchange_declare(durable=durable, exchange=self.exchange, type='direct')
         result = self.channel.queue_declare(durable=durable, exclusive=exclusive, auto_delete=auto_delete)
@@ -28,12 +45,20 @@ class Rabbit_Consumer():
 
 
 class Rabbit_Producer():
-    def __init__(self, exchange, routing_key, durable=True, heartbeat_interval=21600):
+    def __init__(self, exchange, routing_key, durable=True, host='localhost'):
         self.logger = getSentinelLogger()
         self.exchange = exchange
         self.routing_key = routing_key
 
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(heartbeat_interval=heartbeat_interval, host='localhost'))
+        credentials = pika.PlainCredentials(defaultuname, defaultpass)
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+                    host=host,
+                    port=5672,
+                    virtual_host='/',
+                    credentials=credentials,
+                    heartbeat_interval=30,
+                    socket_timeout=5))
+
         self.channel = self.connection.channel()
         self.channel.exchange_declare(durable=durable, exchange=exchange, type='direct')
 
@@ -51,7 +76,7 @@ class Rabbit_Producer():
 #----------
 # producer
 try:
-    rabbit = Rabbit_Producer(exchange='test', routing_key='Test_ToProcess', heartbeat_interval=21600)
+    rabbit = Rabbit_Producer(exchange='test', routing_key='Test_ToProcess', host='localhost')
     rabbit.send('test message')
 except KeyboardInterrupt:
     print('exiting')
@@ -62,7 +87,7 @@ except StopIteration:
 #----------
 # consumer
 try:
-    rabbit = Rabbit_Consumer(exchange='test', routing_key='Test_ToProcess', heartbeat_interval=21600)
+    rabbit = Rabbit_Consumer(exchange='test', routing_key='Test_ToProcess', host='localhost')
     rabbit.channel.basic_consume(rabbit.callback, queue=rabbit.queue_name)
     thread = threading.Thread(target=rabbit.channel.start_consuming)
     thread.start()
