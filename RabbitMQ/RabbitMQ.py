@@ -27,7 +27,6 @@ class Rabbit_Consumer():
                     port=5672,
                     virtual_host='/',
                     credentials=credentials,
-                    heartbeat_interval=30,
                     socket_timeout=5))
 
         self.channel = self.connection.channel()
@@ -56,7 +55,6 @@ class Rabbit_Producer():
                     port=5672,
                     virtual_host='/',
                     credentials=credentials,
-                    heartbeat_interval=30,
                     socket_timeout=5))
 
         self.channel = self.connection.channel()

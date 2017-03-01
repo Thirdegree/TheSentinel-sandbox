@@ -21,11 +21,13 @@ GAPIpulls = {
         'media_author': (i['snippet']['title']),
         'media_channel_id': str(i['id']),
         'media_platform': 'YouTube',
+        'media_id': str(i['id']),
         } for i in x['items']]),
     'channel': (lambda x: [{
         'media_author': (i['snippet']['title']),
         'media_channel_id': str(i['id']),
         'media_platform': 'YouTube',
+        'media_id': str(i['id']),
         } for i in x['items']]),
 }
 

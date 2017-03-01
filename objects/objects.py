@@ -1,6 +1,5 @@
 import configparser
-import os
-import re
+import os, re, json
 import memcache # https://pypi.python.org/pypi/python-memcached
 #import pylibmc # https://github.com/lericson/pylibmc
 from memcached_stats import MemcachedStats # https://github.com/dlrust/python-memcached-stats
@@ -11,6 +10,8 @@ import requests
 
 from ..helpers import Zion, getSentinelLogger, TheTraveler, Utility
 from ..exceptions import InvalidAddition
+from .RabbitMQ import Rabbit_Producer, Rabbit_Consumer
+from datetime import datetime
 
 # Memcache Server Host
 serverhost = '127.0.0.1' # 127.0.0.1 for local or 162.252.84.50 for remote
@@ -34,21 +35,51 @@ class MediaProcess(object):
                 return True
         return False
 
-    def hasBlacklisted(self, subreddit, url):
+    def hasBlacklisted(self, thing, url):        
         if not self.validateURL(url):
             self.logger.debug('Not valid media URL')
-            return False, None, None
+            return False
         try:
             channels = self.APIProcess.getInformation(url)
         except requests.exceptions.HTTPError:
             self.logger.warning("No information found for url - {}".format(url))
-            return False, None, None
+            return False
         for i in channels:
-            blacklisted, media_platform = self.db.isBlacklisted(subreddit, **i):
+            blacklisted = self.db.isBlacklisted(thing.subreddit.display_name, **i):
             if blacklisted:
                 self.logger.debug('Channel is Blacklisted. URL: {}'.format(url))
-                return True, i, media_platform
-        return False, channels, media_platform
+                return True
+            else:
+                # Send to Dirtbag?
+                # TODO
+                # - In datapulls.py set media_id to None for when there is none (other services
+                try:
+                    if i['media_platform'] == 'YouTube':
+                        temp = {
+                            'ThingID': thing.fullname,
+                            'Subreddit': thing.subreddit.display_name,
+                            'Author':{
+                                'Name': thing.author.name,
+                                'Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
+                                'CommentKarma': thing.author.comment_karma,
+                                'LinkKarma': thing.author.link_karma
+                            },
+                            'EntryTime': str(datetime.utcfromtimestamp(thing.created_utc)),
+                            'MediaID': i['media_id'],
+                            'MediaChannelID' : i['media_channel_id'],
+                            'MediaChannelName' : i['media_author'],
+                            'MediaPlatform' : i['media_platform']
+                            }
+
+                        # Initializes the Dirtbag Rabbit Producer
+                        dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV')
+                        dirtbagProducer.send(json.dumps(temp))
+                except Exception:
+                    self.logger.error('Unable to send data to Dirtbag')
+        # Default return faulse
+        return False
+
+                
 
     def addToBlacklist(self, subreddit, url, playlist=False):
         if not self.validateURL(url):

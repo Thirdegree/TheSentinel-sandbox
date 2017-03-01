@@ -49,8 +49,6 @@ class TheSentinel(object):
         self.cache = Memcache()
         self.database = SentinelDatabase()
         self.utility = Utility()
-        # Initializes the Dirtbag Rabbit Producer
-        self.dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToProcess', heartbeat_interval=21600)
 
         self.blacklistSub = 'TheSentinelBot'
 
@@ -197,24 +195,23 @@ class TheSentinel(object):
         for url in urls:
             hasContent = 1
             self.logger.debug(u'Checking blacklist for {} | URL: {}'.format(thing.fullname, url))
-            blacklisted, channel, media_platform = self.isBlacklisted(str(thing.subreddit), url):
-                if blacklisted:
-                    return 2, channel, thing, media_platform
+            blacklisted = self.isBlacklisted(thing, url):
+            if blacklisted:
+                return 2
             else:
                 # is media item but not blacklisted
-                return 1, channel, thing, media_platform
-        return hasContent, None, None, None
+                return 1
+        return hasContent
 
-    def isBlacklisted(self, subreddit, url):
-        channel = None
+    def isBlacklisted(self, thing, url):
         for i, k in self.processes.items():
             try:
-                blacklisted, channel, media_platform = k.hasBlacklisted(subreddit, url):
-                    if blacklisted:
-                        return True, channel, media_platform
+                blacklisted = k.hasBlacklisted(thing, url):
+                if blacklisted:
+                    return True
             except requests.exceptions.SSLError:
                 continue
-        return False, channel, media_platform
+        return False
 
     def isProcessed(self, subreddits):
 
@@ -382,37 +379,6 @@ class TheSentinel(object):
         for i in self.cache.get_new('marco_thesentinelbot'):
             self.cache.add_polo()
 
-    def send_to_dirtbag(self, channels, thing):
-        # TODO
-        # - In datapulls.py set media_id to None for when there is none
-        # - Make sure iterating through 'channels' correctly for singular vs multiple
-        # - Only send to dirtbag if there is a media_id to process (or dirtbag can lookup stats via channel ids?)
-        # - Send each URL in a separate request
-        #
-
-        try:
-            for chan in channels:
-
-                temp = {
-                    'ThingID': thing.fullname,
-                    'Subreddit': thing.subreddit.display_name,
-                    'Author':{
-                        'Name': thing.author.name,
-                        'Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
-                        'CommentKarma': thing.author.comment_karma,
-                        'LinkKarma': thing.author.link_karma
-                    },
-                    'EntryTime': str(datetime.utcfromtimestamp(thing.created_utc)),
-                    'MediaID': chan['media_id'],
-                    'MediaChannelID' : chan['media_channel_id'],
-                    'MediaChannelName' : chan['media_author'],
-                    'MediaPlatform' : chan['media_platform']
-                    }
-                json_data = json.dumps(temp)
-            #self.dirtbagProducer.send(json_data)
-        except Exception:
-            self.logger.error('Unable to send data to Dirtbag')
-
     def main(self):
         self.startThreads()
         self.writeSubs()
@@ -421,15 +387,14 @@ class TheSentinel(object):
             try:
                 for item in self.get_items():
                     try:
-                        level, channels, thing, media_platform = self.needsRemoval(item)
+                        level = self.needsRemoval(item)
                     except requests.exceptions.HTTPError:
                         continue
                     if level == 2:
                         # Normal TSB removal due to being on the blacklist
                         self.remove(thing)
                     #if level == 1:
-                        # Not on blacklist, asking Dirtbag if it should be removed
-                        # self.send_to_dirtbag(channels, thing, media_platform)
+                        # Not on blacklist
 
             except KeyboardInterrupt:
                 self.logger.warning(u"Keyboard Interrrupt - exiting")
