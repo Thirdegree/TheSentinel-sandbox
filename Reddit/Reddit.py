@@ -72,8 +72,13 @@ class SentinelInstance():
     def clearQueue(self):
         processed = []
         while not self.removalQueue.empty():
-            thing = self.removalQueue.get()
-            things = self.r.info([thing.fullname])
+            data = self.removalQueue.get()
+            # If item is a dict (came from Dirtbag)
+            if isinstance(data, dict):
+                things = self.r.info([data['ThingID']])
+            else:
+                things = self.r.info([data.fullname])
+                
             for thing in things:
                 try:
                     message = self.masterClass.getInfo(thing)

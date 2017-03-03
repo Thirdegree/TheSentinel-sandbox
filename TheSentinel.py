@@ -104,6 +104,15 @@ class TheSentinel(object):
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
 
+    def get_from_dirtbag(self):
+        for item in iter(self.DirtbagConsumer.processQueue.get, b'0'):
+            data = json.loads(item)
+
+            if data['RequiredAction'] == 'Remove':
+                #put in removal queue
+                self.remove(thing)
+
+
     def process_webrequest(self, values_dict):
         values_dict = json.loads(values_dict)
         func_dict = {
@@ -396,11 +405,17 @@ class TheSentinel(object):
     def main(self):
         self.startThreads()
         self.writeSubs()
-        # Creates Rabbit Consumer
-        self.SentinelConsumer = Rabbit_Consumer(exchange='test', routing_key='Test_ToProcess', host='localhost')
+        # Creates Rabbit Consumer - For Sentinel Internal ToProcess queue
+        self.SentinelConsumer = Rabbit_Consumer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyze', host='localhost')
         self.SentinelConsumer.channel.basic_consume(self.SentinelConsumer.callback, queue=self.SentinelConsumer.queue_name)
-        thread = threading.Thread(target=self.SentinelConsumer.channel.start_consuming)
-        thread.start()
+        tsb_thread = threading.Thread(target=self.SentinelConsumer.channel.start_consuming)
+        tsb_thread.start()
+
+        # Creates Rabbit Consumer - For return data from Dirtbag to have Sentinel process
+        self.DirtbagConsumer = Rabbit_Consumer(exchange='Sentinel', routing_key='Sentinel_AnalysisResults', host='localhost')
+        self.DirtbagConsumer.channel.basic_consume(self.DirtbagConsumer.callback, queue=self.DirtbagConsumer.queue_name)
+        dirtbag_thread = threading.Thread(target=self.DirtbagConsumer.channel.start_consuming)
+        dirtbag_thread.start()
 
         running = True
         while running:
