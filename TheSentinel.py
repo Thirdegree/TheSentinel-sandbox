@@ -417,6 +417,8 @@ class TheSentinel(object):
         dirtbag_thread = threading.Thread(target=self.DirtbagConsumer.channel.start_consuming)
         dirtbag_thread.start()
 
+        self.get_from_dirtbag()
+        
         running = True
         while running:
             try:
