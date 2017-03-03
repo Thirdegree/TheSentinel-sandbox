@@ -7,6 +7,7 @@ from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..ModmailArchiver import ModmailArchiver
 from ..exceptions import TooFrequent
+from .RabbitMQ import Rabbit_Producer, Rabbit_Consumer
 import prawcore.exceptions
 
 
@@ -45,7 +46,6 @@ class SentinelInstance():
         self.can_global_action = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
 
         self.blacklisted_subs = ['pokemongo']
-
         
 
     def __str__(self):
@@ -100,7 +100,7 @@ class SentinelInstance():
                         self.notifier.send_message('yt_killer', item)
                         seen.append(item['media_author'])
 
-                thing.subreddit.mod.remove(thing) # https://www.reddit.com/r/redditdev/comments/5h2r1c/-/daxk71u/
+                thing.subreddit.mod.remove() # https://www.reddit.com/r/redditdev/comments/5h2r1c/-/daxk71u/
                 self.masterClass.markActioned(thing, type_of='tsb')
                 processed.append(thing.fullname)
         if processed:
@@ -115,15 +115,15 @@ class SentinelInstance():
 
 
     def canAction(self, thing, subreddit=None):
-        
         try:
             if not thing:
                 if any([subreddit.lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
                     self.logger.debug('Subreddit {} matches subs bot mods'.format(subreddit))
                     return True
                 return False
-            if any([str(thing.subreddit).lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
-                self.logger.debug('Thing {} matches subs bot mods'.format(thing.fullname))
+            # Dict
+            if any([str(thing['Subreddit']).lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
+                self.logger.debug('Thing {} matches subs bot mods'.format(thing['ThingID']))
                 return thing
             return False
         except prawcore.exceptions.Forbidden:
@@ -298,7 +298,10 @@ class SentinelInstance():
                     self.removalQueue.put(i)
                     shadowbanned.append(i)
                 else:
-                    self.cache.add(i)
+                    # Memcache
+                    #self.cache.add(i)
+                    # Rabbit
+                    self.masterClass.add_to_rabbit(i)
         self.masterClass.markProcessed(toAdd)
         for thing in shadowbanned:
             self.masterClass.markActioned(thing, type_of='botban')

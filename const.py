@@ -3,7 +3,7 @@
 __app_name__    = 'TheSentinelBot'
 __description__ = 'Anti-Media spam'
 __author__      = 'Thirdegree, D0cR3d'
-__version__     = '1.2.1'
+__version__     = '1.3.0'
 
 
 

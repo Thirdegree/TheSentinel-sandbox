@@ -6,7 +6,7 @@ import requests.exceptions
 import praw
 import sys
 import time
-import json
+import json, jsonpickle
 
 from .helpers import getSentinelLogger, Utility, Websync
 from .YouTube import YouTube
@@ -70,15 +70,37 @@ class TheSentinel(object):
         self.last_mod_alert = None
         self.done = set()
 
-        
+        self.SentinelProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Sentinel_ToProcess')
+
+
+    def add_to_rabbit(self, item, exchange='Sentinel', routing_key='Sentinel_ToProcess'):
+        if isinstance(item, dict)
+            data = json.dumps(item)
+        elif isinstance(item, praw.models.Submission) or isinstance(item, praw.models.Comment):
+            data = json.dumps(self.create_dict_item(item))
+
+        try:
+            # Make sure we're sending to a Producer that maches the routing key we want
+            if self.SentinelProducer.routing_key == routing_key:
+                self.SentinelProducer.send(data)
+        except Exception as e:
+            self.logger.error('Unable to send to SentinelProducer, likely dead connection')
+            self.SentinelProducer = Rabbit_Producer(exchange=exchange, routing_key=routing_key)
+            self.SentinelProducer.send(data)
+
+    def create_dict_item(self, item):
+        return jsonpickle.encode(item)
+
+    def create_object(self, item):
+        return jsonpickle.decode(item)
 
     def get_items(self):
         # returns (thing, [urls])
         try:
-            for item in self.cache.get_new():
+            for item in iter(self.SentinelConsumer.processQueue.get, b'0'):
                 if item:
-                    #self.logger.debug(u'Returning from memcache: {}'.format(item.fullname if item else item)) 
-                    yield self.get_urls(item)
+                    thing = self.create_object(item)
+                    yield self.get_urls(thing)
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
 
@@ -195,23 +217,14 @@ class TheSentinel(object):
         for url in urls:
             hasContent = 1
             self.logger.debug(u'Checking blacklist for {} | URL: {}'.format(thing.fullname, url))
-            blacklisted = self.isBlacklisted(thing, url):
-            if blacklisted:
-                return 2
-            else:
-                # is media item but not blacklisted
-                return 1
-        return hasContent
 
-    def isBlacklisted(self, thing, url):
-        for i, k in self.processes.items():
-            try:
-                blacklisted = k.hasBlacklisted(thing, url):
-                if blacklisted:
-                    return True
-            except requests.exceptions.SSLError:
-                continue
-        return False
+            for i, k in self.processes.items():
+                try:
+                    blacklisted = k.hasBlacklisted(thing, url):
+                    if blacklisted:
+                        self.remove(self.build_thing_dict(thing))
+                except requests.exceptions.SSLError:
+                    continue
 
     def isProcessed(self, subreddits):
 
@@ -335,6 +348,7 @@ class TheSentinel(object):
             return data
         else:
             raise KeyError(u"No match found - {}".format(urls))
+
     #REDDIT SPECIFIC HERE
     def addBlacklist(self, thing, subreddit, urls=[], isGlobal=False, values_dict=None):
         try:
@@ -382,12 +396,18 @@ class TheSentinel(object):
     def main(self):
         self.startThreads()
         self.writeSubs()
+        # Creates Rabbit Consumer
+        self.SentinelConsumer = Rabbit_Consumer(exchange='test', routing_key='Test_ToProcess', host='localhost')
+        self.SentinelConsumer.channel.basic_consume(self.SentinelConsumer.callback, queue=self.SentinelConsumer.queue_name)
+        thread = threading.Thread(target=self.SentinelConsumer.channel.start_consuming)
+        thread.start()
+
         running = True
         while running:
             try:
                 for item in self.get_items():
                     try:
-                        level = self.needsRemoval(item)
+                        level, thing = self.needsRemoval(item)
                     except requests.exceptions.HTTPError:
                         continue
                     if level == 2:

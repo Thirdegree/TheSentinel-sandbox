@@ -35,7 +35,7 @@ class MediaProcess(object):
                 return True
         return False
 
-    def hasBlacklisted(self, thing, url):        
+    def hasBlacklisted(self, thing, url):
         if not self.validateURL(url):
             self.logger.debug('Not valid media URL')
             return False
@@ -45,7 +45,7 @@ class MediaProcess(object):
             self.logger.warning("No information found for url - {}".format(url))
             return False
         for i in channels:
-            blacklisted = self.db.isBlacklisted(thing.subreddit.display_name, **i):
+            blacklisted = self.db.isBlacklisted(thing.subreddit.display_name, **i)
             if blacklisted:
                 self.logger.debug('Channel is Blacklisted. URL: {}'.format(url))
                 return True
@@ -71,12 +71,18 @@ class MediaProcess(object):
                             'MediaPlatform' : i['media_platform']
                             }
 
-                        # Initializes the Dirtbag Rabbit Producer
-                        dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV')
-                        dirtbagProducer.send(json.dumps(temp))
+                        try:
+                            # Initializes the Dirtbag Rabbit Producer
+                            dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV')
+                            dirtbagProducer.send(json.dumps(temp))
+                        except Exception as e:
+                            self.logger.error('Unable to create/send data to Dirtbag')
+                            dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV')
+                            dirtbagProducer.send(json.dumps(temp))
+
                 except Exception:
                     self.logger.error('Unable to send data to Dirtbag')
-        # Default return faulse
+        # Default return false
         return False
 
                 
