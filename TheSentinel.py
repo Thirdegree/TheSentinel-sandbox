@@ -97,7 +97,7 @@ class TheSentinel(object):
     def get_items(self):
         # returns (thing, [urls])
         try:
-            for item in iter(self.SentinelConsumer.processQueue.get, b'0'):
+            for item in iter(self.SentinelConsumer.processQueue.get):
                 if item:
                     thing = self.create_object(item)
                     yield self.get_urls(thing)
@@ -105,7 +105,7 @@ class TheSentinel(object):
             self.logger.warning(u"HTTPError - continue")
 
     def get_from_dirtbag(self):
-        for item in iter(self.DirtbagConsumer.processQueue.get, b'0'):
+        for item in iter(self.DirtbagConsumer.processQueue.get):
             data = json.loads(item)
 
             if data['RequiredAction'] == 'Remove':
