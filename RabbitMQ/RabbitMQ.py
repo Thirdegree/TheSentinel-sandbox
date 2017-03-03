@@ -68,30 +68,3 @@ class Rabbit_Producer():
                                    body=message)
         self.logger.debug('Rabbit sent message. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
 
-
-
-
-#----------
-# producer
-try:
-    rabbit = Rabbit_Producer(exchange='test', routing_key='Test_ToProcess', host='localhost')
-    rabbit.send('test message')
-except KeyboardInterrupt:
-    print('exiting')
-except StopIteration:
-    print('exiting, sentinel value seen')
-
-
-#----------
-# consumer
-try:
-    rabbit = Rabbit_Consumer(exchange='test', routing_key='Test_ToProcess', host='localhost')
-    rabbit.channel.basic_consume(rabbit.callback, queue=rabbit.queue_name)
-    thread = threading.Thread(target=rabbit.channel.start_consuming)
-    thread.start()
-    for item in iter(rabbit.processQueue.get, b'0'):
-        print(item)
-except KeyboardInterrupt:
-    print('exiting')
-except StopIteration:
-    print('exiting, sentinel value seen')
