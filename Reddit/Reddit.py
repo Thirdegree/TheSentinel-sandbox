@@ -7,7 +7,7 @@ from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..ModmailArchiver import ModmailArchiver
 from ..exceptions import TooFrequent
-from .RabbitMQ import Rabbit_Producer, Rabbit_Consumer
+from ..RabbitMQ import Rabbit_Producer, Rabbit_Consumer
 import prawcore.exceptions
 
 
