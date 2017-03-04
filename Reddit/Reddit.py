@@ -360,20 +360,13 @@ class SentinelInstance():
             else:
                 link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
 
-            user = self.r.redditor(str(thing.author))
-            #self.logger.info(user.name)
-            usrutc = user.created_utc
-            #self.logger.info(usrutc)
-            authcreateddate = str(datetime.utcfromtimestamp(usrutc).date())
-            #self.logger.info(authcreateddate)
-
             info_dict = {
                 'Subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
-                'author': user.name,
-                'Author_Created': authcreateddate,
-                'Author_CommentKarma': user.comment_karma,
-                'Author_LinkKarma': user.link_karma,
+                'author': thing.author.name,
+                'Author_Created':  str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
+                'Author_CommentKarma': thing.author.comment_karma,
+                'Author_LinkKarma': thing.author.link_karma,
                 'thingcreated_utc': str(datetime.utcfromtimestamp(thing.created_utc)),
                 'thingedited_utc': str(datetime.utcfromtimestamp(thing.edited)) if thing.edited else None,
                 'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
@@ -389,8 +382,12 @@ class SentinelInstance():
                 'body': thing.body if type(thing) != praw.models.Submission else thing.selftext,
                 }
             return info_dict
+        except prawcore.exceptions.NotFound:
+            self.logger.warning('User deleted the comment/post, unable to get data. ThingID: {}'.format(thing.fullname))
+            return None
         except Exception as e:
             self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))
+            return None
 
     def user_shadowbanned(self, thing):
         if not str(thing.subreddit) in self.shadowbans:

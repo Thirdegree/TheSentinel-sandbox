@@ -97,8 +97,8 @@ class TheSentinel(object):
             info_dict = {
                 'Subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
-                'author': str(thing.author),
-                'Author_Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
+                'author': thing.author.name,
+                'Author_Created':  str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
                 'Author_CommentKarma': thing.author.comment_karma,
                 'Author_LinkKarma': thing.author.link_karma,
                 'thingcreated_utc': str(datetime.utcfromtimestamp(thing.created_utc)),
@@ -116,15 +116,21 @@ class TheSentinel(object):
                 'body': thing.body if type(thing) != praw.models.Submission else thing.selftext,
                 }
             return info_dict
+        except prawcore.exceptions.NotFound:
+            self.logger.warning('User deleted the comment/post, unable to get data. ThingID: {}'.format(thing.fullname))
+            return None
         except Exception as e:
             self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))
+            return None
 
     def create_object(self, item):
         return jsonpickle.decode(item)
 
     def get_items(self):
         # returns (thing, [urls])
+        logger.info('Trying to get_items using SentinelConsumer.processQueue')
         try:
+            #for item in self.SentinelConsumer.callback:
             for item in iter(self.SentinelConsumer.processQueue.get()):
                 self.logger.info('Got data from SentinelConsumer')
                 if item:
