@@ -39,9 +39,6 @@ class Rabbit_Consumer():
     def callback(self, ch, method, properties, body):
         self.processQueue.put(body)
         ch.basic_ack(delivery_tag=method.delivery_tag)
-        self.logger.info('Rabbit recieved message. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
-        self.logger.info('Message: {}'.format(body))
-
 
 class Rabbit_Producer():
     def __init__(self, exchange, routing_key, QueueName, durable=True, host='localhost'):
@@ -66,5 +63,3 @@ class Rabbit_Producer():
         self.channel.basic_publish(exchange=self.exchange,
                                    routing_key=self.routing_key,
                                    body=message)
-        self.logger.info('Rabbit sent message. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
-

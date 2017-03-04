@@ -2,6 +2,8 @@ from multiprocessing import Queue
 import threading
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 import requests.exceptions
 import praw
 import sys, os, time
@@ -83,8 +85,39 @@ class TheSentinel(object):
         self.rk_Sentinel_Results    = Config.get('RabbitMQ', 'rk_Sentinel_AnalysisResults')
         #self.rk_Dirtbag_ToProcess    = Config.get('RabbitMQ', 'rk_Dirtbag_ToProcess')
 
-    def create_dict_item(self, item):
-        return jsonpickle.encode(item)
+    def create_dict_item(self, thing):
+        try:
+            if isinstance(thing, praw.models.Submission):
+                link = 'http://reddit.com/{}'.format(thing.id)
+            elif isinstance(thing, praw.models.Message):
+                link = ''
+            else:
+                link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
+
+            info_dict = {
+                'Subreddit': str(thing.subreddit),
+                'thing_id': thing.fullname,
+                'author': str(thing.author),
+                'Author_Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
+                'Author_CommentKarma': thing.author.comment_karma,
+                'Author_LinkKarma': thing.author.link_karma,
+                'thingcreated_utc': str(datetime.utcfromtimestamp(thing.created_utc)),
+                'thingedited_utc': str(datetime.utcfromtimestamp(thing.edited)) if thing.edited else None,
+                'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
+                'permalink': link,
+                'media_author': '',
+                'media_channel_id': '',
+                'media_platform': '',
+                'media_link': '',
+                'title': thing.title if type(thing) == praw.models.Submission else None,
+                'url': str(thing.url) if type(thing) == praw.models.Submission else str(link),
+                'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
+                'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
+                'body': thing.body if type(thing) != praw.models.Submission else thing.selftext,
+                }
+            return info_dict
+        except Exception as e:
+            self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))
 
     def create_object(self, item):
         return jsonpickle.decode(item)
@@ -156,7 +189,7 @@ class TheSentinel(object):
 
     def save_sentinel_permissions(self, permissions, subreddit):
         self.utility.update_permissions(permissions, subreddit)
-        self.logger.info('Updated permissions for: {} | Perms: {}'.format(subreddit, permissions))
+        self.logger.debug('Updated permissions for: {} | Perms: {}'.format(subreddit, permissions))
 
 
 
@@ -262,7 +295,7 @@ class TheSentinel(object):
                 'body': (thing.body if type(thing) != praw.models.Submission else thing.selftext),
                 }
             try:
-                data = self.getInfo(thing)
+                data = self.getInfo(self.create_dict_item(thing))
                 temp = {
                     'media_author': [],
                     'media_channel_id': [],
@@ -325,7 +358,7 @@ class TheSentinel(object):
 
     def getInfo(self, thing, urls=[]):
         data = []
-        if thing:
+        if thing: # returns dct for thing
             thing, urls = self.get_urls(thing)
         for url in urls:
             temp = None
@@ -351,7 +384,7 @@ class TheSentinel(object):
     #REDDIT SPECIFIC HERE
     def addBlacklist(self, thing, subreddit, urls=[], isGlobal=False, values_dict=None):
         try:
-            data = self.getInfo(thing, urls)
+            data = self.getInfo(self.create_dict_item(thing), urls)
         except KeyError:
             return None
         authors = []
@@ -374,7 +407,7 @@ class TheSentinel(object):
 
     #REDDIT SPECIFIC HERE
     def removeBlacklist(self, thing, subreddit, urls=[], values_dict=None):
-        data = self.getInfo(thing, urls)
+        data = self.getInfo(self.create_dict_item(thing), urls)
                 
         authors = []
         for i in data:

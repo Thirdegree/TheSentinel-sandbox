@@ -52,7 +52,7 @@ class MediaProcess(object):
                 try:
                     if i['media_platform'] == 'YouTube':
                         temp = {
-                            'ThingID': thing['thing_id']
+                            'ThingID': thing['thing_id'],
                             'Subreddit': thing['Subreddit'],
                             'Author':{
                                 'Name': thing['author'],

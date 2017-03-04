@@ -78,7 +78,7 @@ class Blacklist(Database):
         if "media_channel_id" not in kwargs:
             self.logger.warning('No channel_id provided')
             raise RuntimeError("No channel_id provided")
-        subreddit = kwargs['subreddit']
+        subreddit = kwargs['Subreddit']
         if self.isBlacklisted(subreddit, media_channel_id=kwargs['media_channel_id']):
             self.logger.debug(u'Channel already blacklisted: ChanID: {}'.format(kwargs['media_channel_id']))
             return True
@@ -143,7 +143,7 @@ class Blacklist(Database):
                         statement = "(%(thing_id)s, false, now())"
                         args3.append(c.mogrify(statement, item))
                         
-                        statement = "(%(thing_id)s, (SELECT id FROM subreddit where subreddit_name=%(subreddit)s), %(author)s, %(thingcreated_utc)s, %(thingedited_utc)s, %(parent_thing_id)s, %(permalink)s, %(body)s, %(title)s, %(url)s, %(flair_class)s, %(flair_text)s)"
+                        statement = "(%(thing_id)s, (SELECT id FROM subreddit where subreddit_name=%(Subreddit)s), %(author)s, %(thingcreated_utc)s, %(thingedited_utc)s, %(parent_thing_id)s, %(permalink)s, %(body)s, %(title)s, %(url)s, %(flair_class)s, %(flair_text)s)"
                         args.append(c.mogrify(statement, item))
 
                         if not item['media_link']:

@@ -95,7 +95,7 @@ class SentinelInstance():
                 # Data came from Dirtbag
                 except KeyError:
                     things = self.r.info([data['ThingID']])
-                    self.logger.info('Data came from Dirtbag: {}'.format(data['ThingID']))aise e
+                    self.logger.info('Data came from Dirtbag: {}'.format(data['ThingID']))
             # Else, is a thing object
             else:
                 things = self.r.info([data.fullname])
@@ -352,36 +352,45 @@ class SentinelInstance():
             #self.logger.info('sent data via add_to_rabbit')
 
     def create_dict_item(self, thing):
+        try:
+            if isinstance(thing, praw.models.Submission):
+                link = 'http://reddit.com/{}'.format(thing.id)
+            elif isinstance(thing, praw.models.Message):
+                link = ''
+            else:
+                link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
 
-        if isinstance(thing, praw.models.Submission):
-            link = 'http://reddit.com/{}'.format(thing.id)
-        elif isinstance(thing, praw.models.Message):
-            link = ''
-        else:
-            link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
+            user = self.r.redditor(str(thing.author))
+            #self.logger.info(user.name)
+            usrutc = user.created_utc
+            #self.logger.info(usrutc)
+            authcreateddate = str(datetime.utcfromtimestamp(usrutc).date())
+            #self.logger.info(authcreateddate)
 
-        info_dict = {
-            'Subreddit': str(thing.subreddit),
-            'thing_id': thing.fullname,
-            'author': str(thing.author),
-            'Author_Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
-            'Author_CommentKarma': thing.author.comment_karma,
-            'Author_LinkKarma': thing.author.link_karma,
-            'thingcreated_utc': datetime.utcfromtimestamp(thing.created_utc),
-            'thingedited_utc': datetime.utcfromtimestamp(thing.edited) if thing.edited else None,
-            'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
-            'permalink': link,
-            'media_author': '',
-            'media_channel_id': '',
-            'media_platform': '',
-            'media_link': '',
-            'title': thing.title if type(thing) == praw.models.Submission else None,
-            'url': thing.url if type(thing) == praw.models.Submission else link,
-            'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
-            'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
-            'body': (thing.body if type(thing) != praw.models.Submission else thing.selftext),
-            }
-        return info_dict
+            info_dict = {
+                'Subreddit': str(thing.subreddit),
+                'thing_id': thing.fullname,
+                'author': user.name,
+                'Author_Created': authcreateddate,
+                'Author_CommentKarma': user.comment_karma,
+                'Author_LinkKarma': user.link_karma,
+                'thingcreated_utc': str(datetime.utcfromtimestamp(thing.created_utc)),
+                'thingedited_utc': str(datetime.utcfromtimestamp(thing.edited)) if thing.edited else None,
+                'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
+                'permalink': link,
+                'media_author': '',
+                'media_channel_id': '',
+                'media_platform': '',
+                'media_link': '',
+                'title': thing.title if type(thing) == praw.models.Submission else None,
+                'url': str(thing.url) if type(thing) == praw.models.Submission else str(link),
+                'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
+                'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
+                'body': thing.body if type(thing) != praw.models.Submission else thing.selftext,
+                }
+            return info_dict
+        except Exception as e:
+            self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))
 
     def user_shadowbanned(self, thing):
         if not str(thing.subreddit) in self.shadowbans:
