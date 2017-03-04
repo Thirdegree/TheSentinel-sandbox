@@ -1,11 +1,11 @@
-import sys, threading
+import os, sys, threading
 import pika
 import configparser
 
 from multiprocessing import Queue
 from ..helpers import getSentinelLogger
 
-Config = configparser.ConfigParser()
+Config = configparser.ConfigParser(interpolation=None)
 mydir = os.path.dirname(os.path.abspath(__file__))
 Config.read(os.path.join(mydir, '..', "global_config.ini"))
 
@@ -15,7 +15,7 @@ defaultpass  = Config.get('RabbitMQ', 'Password')
 # Support Docs: https://www.rabbitmq.com/amqp-0-9-1-reference.html
 
 class Rabbit_Consumer():
-    def __init__(self, exchange, routing_key, durable=True, exclusive=False, auto_delete=False, host='localhost'):
+    def __init__(self, exchange, routing_key, QueueName, durable=True, exclusive=False, auto_delete=False, host='localhost'):
         self.logger = getSentinelLogger()
         self.exchange = exchange
         self.routing_key = routing_key
@@ -31,20 +31,20 @@ class Rabbit_Consumer():
 
         self.channel = self.connection.channel()
         self.channel.exchange_declare(durable=durable, exchange=self.exchange, type='direct')
-        result = self.channel.queue_declare(durable=durable, exclusive=exclusive, auto_delete=auto_delete)
-        self.queue_name = result.method.queue
-        self.channel.queue_bind(exchange=self.exchange, queue=self.queue_name, routing_key=self.routing_key)
+        self.channel.queue_declare(queue=QueueName, durable=durable, exclusive=exclusive, auto_delete=auto_delete)
+        self.channel.queue_bind(exchange=self.exchange, queue=QueueName, routing_key=self.routing_key)
 
         self.logger.info('Initialized Rabbit Consumer. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
 
     def callback(self, ch, method, properties, body):
         self.processQueue.put(body)
         ch.basic_ack(delivery_tag=method.delivery_tag)
-        self.logger.debug('Rabbit recieved message. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
+        self.logger.info('Rabbit recieved message. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
+        self.logger.info('Message: {}'.format(body))
 
 
 class Rabbit_Producer():
-    def __init__(self, exchange, routing_key, durable=True, host='localhost'):
+    def __init__(self, exchange, routing_key, QueueName, durable=True, host='localhost'):
         self.logger = getSentinelLogger()
         self.exchange = exchange
         self.routing_key = routing_key
@@ -66,5 +66,5 @@ class Rabbit_Producer():
         self.channel.basic_publish(exchange=self.exchange,
                                    routing_key=self.routing_key,
                                    body=message)
-        self.logger.debug('Rabbit sent message. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
+        self.logger.info('Rabbit sent message. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
 

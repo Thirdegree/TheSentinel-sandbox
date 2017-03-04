@@ -1,4 +1,6 @@
-import praw, re, time, requests, sys, threading
+import praw
+import json, jsonpickle
+import os, re, sys, time, requests, threading, configparser
 from datetime import datetime
 from collections import deque
 from ..helpers.responses import *
@@ -7,7 +9,7 @@ from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..ModmailArchiver import ModmailArchiver
 from ..exceptions import TooFrequent
-from ..RabbitMQ import Rabbit_Producer, Rabbit_Consumer
+from ..RabbitMQ import Rabbit_Producer
 import prawcore.exceptions
 
 
@@ -46,10 +48,23 @@ class SentinelInstance():
         self.can_global_action = [self.r.redditor('thirdegree'), self.r.redditor('d0cr3d')]
 
         self.blacklisted_subs = ['pokemongo']
+
+        self.load_config()
+        self.SentinelProducer = Rabbit_Producer(exchange=self.ex_SentinelExchange, routing_key=self.rk_Sentinel_ToProcess, QueueName=self.rk_Sentinel_ToProcess)
         
 
     def __str__(self):
         return self.me.name
+
+    def load_config(self):
+        Config = configparser.ConfigParser()
+        mydir = os.path.dirname(os.path.abspath(__file__))
+        Config.read(os.path.join(mydir, "..", "global_config.ini"))
+
+        self.ex_SentinelExchange    = Config.get('RabbitMQ', 'ex_SentinelExchange')
+        self.rk_Sentinel_ToProcess  = Config.get('RabbitMQ', 'rk_Sentinel_ToProcess')
+        #self.rk_Sentinel_Results    = Config.get('RabbitMQ', 'rk_Sentinel_AnalysisResults')
+        #self.rk_Dirtbag_ToProcess    = Config.get('RabbitMQ', 'rk_Dirtbag_ToProcess')
 
     def messageSubreddits(self, title, message):
         for sub in self.subsModded:
@@ -76,6 +91,7 @@ class SentinelInstance():
             # If item is a dict (came from Dirtbag)
             if isinstance(data, dict):
                 things = self.r.info([data['ThingID']])
+                self.logger.info('Data came from Dirtbag: {}'.format(data['ThingID']))
             else:
                 things = self.r.info([data.fullname])
                 
@@ -306,10 +322,34 @@ class SentinelInstance():
                     # Memcache
                     #self.cache.add(i)
                     # Rabbit
-                    self.masterClass.add_to_rabbit(i)
+                    self.add_to_rabbit(i)
         self.masterClass.markProcessed(toAdd)
         for thing in shadowbanned:
             self.masterClass.markActioned(thing, type_of='botban')
+
+    def add_to_rabbit(self, item, exchange='Sentinel', routing_key='Sentinel_ToProcess'):
+        if isinstance(item, dict):
+            data = json.dumps(item)
+        elif isinstance(item, praw.models.Submission) or isinstance(item, praw.models.Comment):
+            data = json.dumps(self.create_dict_item(item))
+
+        try:
+            # Make sure we're sending to a Producer that maches the routing key we want
+            if self.SentinelProducer.routing_key == routing_key:
+                self.SentinelProducer.send(data)
+                #self.logger.info('sent data via add_to_rabbit')
+            else:
+                self.SentinelProducer = Rabbit_Producer(exchange=exchange, routing_key=routing_key, QueueName=self.rk_Sentinel_ToProcess)
+                self.SentinelProducer.send(data)
+                #self.logger.info('sent data via add_to_rabbit')
+        except Exception as e:
+            self.logger.error('Unable to send to SentinelProducer, likely dead connection')
+            self.SentinelProducer = Rabbit_Producer(exchange=exchange, routing_key=routing_key, QueueName=self.rk_Sentinel_ToProcess)
+            self.SentinelProducer.send(data)
+            #self.logger.info('sent data via add_to_rabbit')
+
+    def create_dict_item(self, item):
+        return jsonpickle.encode(item)
 
     def user_shadowbanned(self, thing):
         if not str(thing.subreddit) in self.shadowbans:

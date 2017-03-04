@@ -10,7 +10,7 @@ import requests
 
 from ..helpers import Zion, getSentinelLogger, TheTraveler, Utility
 from ..exceptions import InvalidAddition
-from .RabbitMQ import Rabbit_Producer, Rabbit_Consumer
+from ..RabbitMQ import *
 from datetime import datetime
 
 # Memcache Server Host

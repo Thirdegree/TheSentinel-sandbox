@@ -4,8 +4,7 @@ from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import requests.exceptions
 import praw
-import sys
-import time
+import sys, os, time
 import json, jsonpickle
 import configparser
 
@@ -21,7 +20,7 @@ from .objects import Memcache, SentinelDatabase
 from .oAuths import oAuth
 from .Reddit import SentinelInstance
 from .exceptions import TooFrequent
-from .RabbitMQ import Rabbit_Producer, Rabbit_Consumer
+from .RabbitMQ import *
 
 class TheSentinel(object):
     def __init__(self):
@@ -73,35 +72,16 @@ class TheSentinel(object):
 
         self.load_config()
 
-        self.SentinelProducer = Rabbit_Producer(exchange=self.SentinelExchange, routing_key=self.rk_Sentinel_ToProcess)
 
     def load_config(self):
         Config = configparser.ConfigParser()
         mydir = os.path.dirname(os.path.abspath(__file__))
-        Config.read(os.path.join(mydir, '..', "global_config.ini"))
+        Config.read(os.path.join(mydir, "global_config.ini"))
 
         self.ex_SentinelExchange    = Config.get('RabbitMQ', 'ex_SentinelExchange')
         self.rk_Sentinel_ToProcess  = Config.get('RabbitMQ', 'rk_Sentinel_ToProcess')
         self.rk_Sentinel_Results    = Config.get('RabbitMQ', 'rk_Sentinel_AnalysisResults')
         #self.rk_Dirtbag_ToProcess    = Config.get('RabbitMQ', 'rk_Dirtbag_ToProcess')
-
-    def add_to_rabbit(self, item, exchange=self.ex_SentinelExchange, routing_key=self.rk_Sentinel_ToProcess):
-        if isinstance(item, dict)
-            data = json.dumps(item)
-        elif isinstance(item, praw.models.Submission) or isinstance(item, praw.models.Comment):
-            data = json.dumps(self.create_dict_item(item))
-
-        try:
-            # Make sure we're sending to a Producer that maches the routing key we want
-            if self.SentinelProducer.routing_key == routing_key:
-                self.SentinelProducer.send(data)
-            else:
-                self.SentinelProducer = Rabbit_Producer(exchange=exchange, routing_key=routing_key)
-                self.SentinelProducer.send(data)
-        except Exception as e:
-            self.logger.error('Unable to send to SentinelProducer, likely dead connection')
-            self.SentinelProducer = Rabbit_Producer(exchange=exchange, routing_key=routing_key)
-            self.SentinelProducer.send(data)
 
     def create_dict_item(self, item):
         return jsonpickle.encode(item)
@@ -112,7 +92,8 @@ class TheSentinel(object):
     def get_items(self):
         # returns (thing, [urls])
         try:
-            for item in iter(self.SentinelConsumer.processQueue.get):
+            for item in iter(self.SentinelConsumer.processQueue.get()):
+                self.logger.info('Got data from SentinelConsumer')
                 if item:
                     thing = self.create_object(item)
                     yield self.get_urls(thing)
@@ -120,7 +101,8 @@ class TheSentinel(object):
             self.logger.warning(u"HTTPError - continue")
 
     def get_from_dirtbag(self):
-        for item in iter(self.DirtbagConsumer.processQueue.get):
+        for item in iter(self.DirtbagConsumer.processQueue.get()):
+            self.logger.info('Got data from DirtbagConsumer')
             data = json.loads(item)
 
             if data['RequiredAction'] == 'Remove': # Possible Values: ['Remove', 'Report', 'Nothing']
@@ -244,7 +226,7 @@ class TheSentinel(object):
 
             for i, k in self.processes.items():
                 try:
-                    blacklisted = k.hasBlacklisted(thing, url):
+                    blacklisted = k.hasBlacklisted(thing, url)
                     if blacklisted:
                         self.remove(self.build_thing_dict(thing))
                 except requests.exceptions.SSLError:
@@ -301,7 +283,7 @@ class TheSentinel(object):
                         else:
                             temp[k].append(v)
                 for k, v in temp.items():
-                    info_dict[k] = ",".join(v)
+                    info_dict[k] = ",".join([str(i) for i in v])
             except KeyError:
                 pass
             toDo.append(info_dict)
@@ -421,14 +403,14 @@ class TheSentinel(object):
         self.startThreads()
         self.writeSubs()
         # Creates Rabbit Consumer - For Sentinel Internal ToProcess queue
-        self.SentinelConsumer = Rabbit_Consumer(exchange=self.ex_SentinelExchange, routing_key=self.rk_Sentinel_ToProcess, host='localhost')
-        self.SentinelConsumer.channel.basic_consume(self.SentinelConsumer.callback, queue=self.SentinelConsumer.queue_name)
+        self.SentinelConsumer = Rabbit_Consumer(exchange=self.ex_SentinelExchange, routing_key=self.rk_Sentinel_ToProcess, QueueName=self.rk_Sentinel_ToProcess, host='localhost')
+        self.SentinelConsumer.channel.basic_consume(self.SentinelConsumer.callback, queue=self.rk_Sentinel_ToProcess)
         tsb_thread = threading.Thread(target=self.SentinelConsumer.channel.start_consuming)
         tsb_thread.start()
 
         # Creates Rabbit Consumer - For return data from Dirtbag to have Sentinel process
-        self.DirtbagConsumer = Rabbit_Consumer(exchange=self.ex_SentinelExchange, routing_key=self.rk_Sentinel_AnalysisResults, host='localhost')
-        self.DirtbagConsumer.channel.basic_consume(self.DirtbagConsumer.callback, queue=self.DirtbagConsumer.queue_name)
+        self.DirtbagConsumer = Rabbit_Consumer(exchange=self.ex_SentinelExchange, routing_key=self.rk_Sentinel_Results, QueueName=self.rk_Sentinel_Results, host='localhost')
+        self.DirtbagConsumer.channel.basic_consume(self.DirtbagConsumer.callback, queue=self.rk_Sentinel_Results)
         dirtbag_thread = threading.Thread(target=self.DirtbagConsumer.channel.start_consuming)
         dirtbag_thread.start()
 

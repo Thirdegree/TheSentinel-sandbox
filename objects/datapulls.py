@@ -68,7 +68,7 @@ DMpulls = {
     'playlist': (lambda x: [{
         'media_author': (x['owner.screenname']),
         'media_channel_id': str(x['owner']),
-        'media_platform': 'DailyMotion'
+        'media_platform': 'DailyMotion',
         'media_id': None,
         }]),
     'playlist videos': (lambda x: [{
