@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 import requests.exceptions
-import praw
+import praw, prawcore
 import sys, os, time
 import json, jsonpickle
 import configparser
@@ -123,21 +123,29 @@ class TheSentinel(object):
             self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))
             return None
 
+    # Turns a string into a dict
     def create_object(self, item):
-        return jsonpickle.decode(item)
+        try:
+            return json.loads(item)
+        except Exception:
+            self.logger.warning('Unable to create dict from json object')
+            
+        
 
     def get_items(self):
         # returns (thing, [urls])
-        logger.info('Trying to get_items using SentinelConsumer.processQueue')
+        time.sleep(5)
         try:
-            #for item in self.SentinelConsumer.callback:
-            for item in iter(self.SentinelConsumer.processQueue.get()):
-                self.logger.info('Got data from SentinelConsumer')
+            while not self.SentinelConsumer.processQueue.empty():
+                item = self.SentinelConsumer.processQueue.get()
                 if item:
                     thing = self.create_object(item)
-                    yield self.get_urls(thing)
+                    if thing:
+                        yield self.get_urls(thing)
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
+        except:
+            self.logger.warning('some other get_items error')
 
     def get_from_dirtbag(self):
         for item in iter(self.DirtbagConsumer.processQueue.get()):
@@ -446,21 +454,17 @@ class TheSentinel(object):
         dirtbag_thread = threading.Thread(target=self.DirtbagConsumer.channel.start_consuming)
         dirtbag_thread.start()
 
-        self.get_from_dirtbag()
+        get_from_dirtbag_thread = threading.Thread(target=self.get_from_dirtbag)
+        get_from_dirtbag_thread.start()
         
         running = True
         while running:
             try:
                 for item in self.get_items():
                     try:
-                        level, thing = self.needsRemoval(item)
+                        self.needsRemoval(item)
                     except requests.exceptions.HTTPError:
                         continue
-                    if level == 2:
-                        # Normal TSB removal due to being on the blacklist
-                        self.remove(thing)
-                    #if level == 1:
-                        # Not on blacklist
 
             except KeyboardInterrupt:
                 self.logger.warning(u"Keyboard Interrrupt - exiting")

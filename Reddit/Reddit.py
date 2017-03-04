@@ -1,4 +1,4 @@
-import praw
+import praw, prawcore
 import json, jsonpickle
 import os, re, sys, time, requests, threading, configparser
 from datetime import datetime
@@ -363,7 +363,7 @@ class SentinelInstance():
             info_dict = {
                 'Subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
-                'author': thing.author.name,
+                'author': str(thing.author),
                 'Author_Created':  str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
                 'Author_CommentKarma': thing.author.comment_karma,
                 'Author_LinkKarma': thing.author.link_karma,
