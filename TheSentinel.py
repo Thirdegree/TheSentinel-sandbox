@@ -109,17 +109,6 @@ class TheSentinel(object):
                 #put in removal queue
                 self.remove(thing)
 
-
-    def process_webrequest(self, values_dict):
-        values_dict = json.loads(values_dict)
-        func_dict = {
-            'add': self.addBlacklist,
-            'remove': self.removeBlacklist,
-        }
-        if values_dict['action'] in func_dict:
-            func_dict[values_dict['action']](thing=None, subreddit=values_dict['subreddit'], urls=[values_dict['url']], values_dict=values_dict)
-            self.cache.add(True, keyString='webrequest')
-
     def messageSubreddits(self, title, body):
         
         if self.last_mod_alert:
@@ -176,13 +165,13 @@ class TheSentinel(object):
         urls = []
         noLink = False
         try:
-            soup = BeautifulSoup(item.selftext_html, 'html.parser')
+            soup = BeautifulSoup(item['body'], 'html.parser')
             #self.logger.debug(u'Soup: Parsing Self Text')
         except AttributeError: # if it's a comment
-            soup = BeautifulSoup(item.body_html, 'html.parser')
+            soup = BeautifulSoup(item['body'], 'html.parser')
             #self.logger.debug(u'Soup: Parsing Comment')
         except TypeError: # if it's a direct link
-            urls.append(item.url)
+            urls.append(item['url'])
             noLink = True
             #self.logger.debug(u'Soup: Direct Link')
 
@@ -218,17 +207,18 @@ class TheSentinel(object):
 
     #REDDIT SPECIFIC HERE
     def needsRemoval(self, item):
+        # thing is a dictionary
         thing, urls = item
         hasContent = 0
         for url in urls:
             hasContent = 1
-            self.logger.debug(u'Checking blacklist for {} | URL: {}'.format(thing.fullname, url))
+            self.logger.debug(u'Checking blacklist for {} | URL: {}'.format(thing['thing_id'], url))
 
             for i, k in self.processes.items():
                 try:
                     blacklisted = k.hasBlacklisted(thing, url)
                     if blacklisted:
-                        self.remove(self.build_thing_dict(thing))
+                        self.remove(thing)
                 except requests.exceptions.SSLError:
                     continue
 
@@ -251,9 +241,12 @@ class TheSentinel(object):
                 link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
 
             info_dict = {
-                'subreddit': str(thing.subreddit),
+                'Subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
                 'author': str(thing.author),
+                'Author_Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
+                'Author_CommentKarma': thing.author.comment_karma,
+                'Author_LinkKarma': thing.author.link_karma,
                 'thingcreated_utc': datetime.utcfromtimestamp(thing.created_utc),
                 'thingedited_utc': datetime.utcfromtimestamp(thing.edited) if thing.edited else None,
                 'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
@@ -365,14 +358,14 @@ class TheSentinel(object):
         for i in data:
             i['thingid'] = thing.fullname
             i['author'] = str(thing.author) if thing else values_dict['modname']
-            i['subreddit'] = (self.blacklistSub if isGlobal else str(subreddit))
+            i['Subreddit'] = (self.blacklistSub if isGlobal else str(subreddit))
             i['thingcreated_utc'] = thing.created_utc if thing else time.time()
             try:
                 i['permalink'] = thing.permalink if thing else None
             except AttributeError:
                 i['permalink'] = None
             i['body'] = thing.body
-            self.logger.info(u'Adding to database: {} for sub r/{}'.format(i['thingid'], i['subreddit']))
+            self.logger.info(u'Adding to database: {} for sub r/{}'.format(i['thingid'], i['Subreddit']))
             success = self.database.addBlacklist(i)
             if success:
                 authors.append(i['media_author'])
@@ -385,10 +378,10 @@ class TheSentinel(object):
                 
         authors = []
         for i in data:
-            i['subreddit'] = str(subreddit)
+            i['Subreddit'] = str(subreddit)
             i['date'] = datetime.today()
             i['author'] = str(thing.author) if thing else values_dict['modname']
-            self.logger.info(u'Removing from database: {} for sub r/{}'.format(thing.fullname if thing else 'WebRequest', i['subreddit']))
+            self.logger.info(u'Removing from database: {} for sub r/{}'.format(thing.fullname if thing else 'WebRequest', i['Subreddit']))
             success = self.database.removeBlacklist(**i)
             if success:
                 authors.append(i['media_author'])

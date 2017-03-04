@@ -5,7 +5,6 @@ from datetime import datetime
 from collections import deque
 from ..helpers.responses import *
 from ..helpers import getSentinelLogger, SlackNotifier, ShadowbanDatabase
-from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..ModmailArchiver import ModmailArchiver
 from ..exceptions import TooFrequent
@@ -37,7 +36,6 @@ class SentinelInstance():
         self.removalQueue = queue
         self.masterClass = masterClass
         self.messageSub = 'Layer7'
-        self.cache = Memcache()
         self.subscriberLimit = 20000000
         self.notifier = SlackNotifier()
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
@@ -88,10 +86,17 @@ class SentinelInstance():
         processed = []
         while not self.removalQueue.empty():
             data = self.removalQueue.get()
-            # If item is a dict (came from Dirtbag)
+
             if isinstance(data, dict):
-                things = self.r.info([data['ThingID']])
-                self.logger.info('Data came from Dirtbag: {}'.format(data['ThingID']))
+                # Data came from internal ToProcess queue
+                try:
+                    things = self.r.info([data['thing_id']])
+                    self.logger.info('Data came from internal ToProcess: {}'.format(data['thing_id']))
+                # Data came from Dirtbag
+                except KeyError:
+                    things = self.r.info([data['ThingID']])
+                    self.logger.info('Data came from Dirtbag: {}'.format(data['ThingID']))aise e
+            # Else, is a thing object
             else:
                 things = self.r.info([data.fullname])
                 
@@ -114,7 +119,7 @@ class SentinelInstance():
                 seen = []
                 for item in message:
                     item['author'] = str(thing.author)
-                    item['subreddit'] = str(thing.subreddit)
+                    item['Subreddit'] = str(thing.subreddit)
                     item['permalink'] = perma
                     if item['media_author'] not in seen and item['media_author']:
                         self.notifier.send_message(str(thing.subreddit), item)
@@ -143,7 +148,7 @@ class SentinelInstance():
                     return True
                 return False
             # Dict
-            if any([str(thing['Subreddit']).lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
+            if any([str(thing['Subreddit'.lower()]).lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
                 self.logger.debug('Thing {} matches subs bot mods'.format(thing['ThingID']))
                 return thing
             return False
@@ -319,8 +324,6 @@ class SentinelInstance():
                     self.removalQueue.put(i)
                     shadowbanned.append(i)
                 else:
-                    # Memcache
-                    #self.cache.add(i)
                     # Rabbit
                     self.add_to_rabbit(i)
         self.masterClass.markProcessed(toAdd)
@@ -348,8 +351,37 @@ class SentinelInstance():
             self.SentinelProducer.send(data)
             #self.logger.info('sent data via add_to_rabbit')
 
-    def create_dict_item(self, item):
-        return jsonpickle.encode(item)
+    def create_dict_item(self, thing):
+
+        if isinstance(thing, praw.models.Submission):
+            link = 'http://reddit.com/{}'.format(thing.id)
+        elif isinstance(thing, praw.models.Message):
+            link = ''
+        else:
+            link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
+
+        info_dict = {
+            'Subreddit': str(thing.subreddit),
+            'thing_id': thing.fullname,
+            'author': str(thing.author),
+            'Author_Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
+            'Author_CommentKarma': thing.author.comment_karma,
+            'Author_LinkKarma': thing.author.link_karma,
+            'thingcreated_utc': datetime.utcfromtimestamp(thing.created_utc),
+            'thingedited_utc': datetime.utcfromtimestamp(thing.edited) if thing.edited else None,
+            'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
+            'permalink': link,
+            'media_author': '',
+            'media_channel_id': '',
+            'media_platform': '',
+            'media_link': '',
+            'title': thing.title if type(thing) == praw.models.Submission else None,
+            'url': thing.url if type(thing) == praw.models.Submission else link,
+            'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
+            'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
+            'body': (thing.body if type(thing) != praw.models.Submission else thing.selftext),
+            }
+        return info_dict
 
     def user_shadowbanned(self, thing):
         if not str(thing.subreddit) in self.shadowbans:

@@ -1,17 +1,15 @@
 import configparser
 import os, re, json
+import requests
 import memcache # https://pypi.python.org/pypi/python-memcached
-#import pylibmc # https://github.com/lericson/pylibmc
 from memcached_stats import MemcachedStats # https://github.com/dlrust/python-memcached-stats
 import tweepy
 
 from ..objects import datapulls
-import requests
 
 from ..helpers import Zion, getSentinelLogger, TheTraveler, Utility
 from ..exceptions import InvalidAddition
 from ..RabbitMQ import *
-from datetime import datetime
 
 # Memcache Server Host
 serverhost = '127.0.0.1' # 127.0.0.1 for local or 162.252.84.50 for remote
@@ -45,26 +43,24 @@ class MediaProcess(object):
             self.logger.warning("No information found for url - {}".format(url))
             return False
         for i in channels:
-            blacklisted = self.db.isBlacklisted(thing.subreddit.display_name, **i)
+            blacklisted = self.db.isBlacklisted(thing['Subreddit'], **i)
             if blacklisted:
                 self.logger.debug('Channel is Blacklisted. URL: {}'.format(url))
                 return True
             else:
-                # Send to Dirtbag?
-                # TODO
-                # - In datapulls.py set media_id to None for when there is none (other services
+                # Send to Dirtbag
                 try:
                     if i['media_platform'] == 'YouTube':
                         temp = {
-                            'ThingID': thing.fullname,
-                            'Subreddit': thing.subreddit.display_name,
+                            'ThingID': thing['thing_id']
+                            'Subreddit': thing['Subreddit'],
                             'Author':{
-                                'Name': thing.author.name,
-                                'Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
-                                'CommentKarma': thing.author.comment_karma,
-                                'LinkKarma': thing.author.link_karma
+                                'Name': thing['author'],
+                                'Created': thing['Author_Created'],
+                                'CommentKarma': thing['Author_CommentKarma'],
+                                'LinkKarma': thing['Author_LinkKarma']
                             },
-                            'EntryTime': str(datetime.utcfromtimestamp(thing.created_utc)),
+                            'EntryTime': thing['thingcreated_utc'],
                             'MediaID': i['media_id'],
                             'MediaChannelID' : i['media_channel_id'],
                             'MediaChannelName' : i['media_author'],
