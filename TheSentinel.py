@@ -113,8 +113,9 @@ class TheSentinel(object):
                 'url': str(thing.url) if type(thing) == praw.models.Submission else str(link),
                 'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
                 'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
-                'body': thing.body if type(thing) != praw.models.Submission else thing.selftext,
+                'body': thing.body_html if type(thing) != praw.models.Submission else thing.selftext_html,
                 }
+            self.logger.debug('Created dict for: {}'.format(info_dict['thing_id']))
             return info_dict
         except prawcore.exceptions.NotFound:
             self.logger.warning('User deleted the comment/post, unable to get data. ThingID: {}'.format(thing.fullname))
@@ -131,6 +132,7 @@ class TheSentinel(object):
                 if item:
                     thing = json.loads(item) # creates a dictionary item
                     if thing:
+                        self.logger.debug('Got item from get_items: {}'.format(thing['thing_id']))
                         yield self.get_urls(thing)
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
@@ -147,7 +149,6 @@ class TheSentinel(object):
                 self.remove(thing)
 
     def messageSubreddits(self, title, body):
-        
         if self.last_mod_alert:
             sincelast = datetime.now() - self.last_mod_alert
             if sincelast < timedelta(hours=1):
@@ -193,27 +194,27 @@ class TheSentinel(object):
 
     def save_sentinel_permissions(self, permissions, subreddit):
         self.utility.update_permissions(permissions, subreddit)
-        self.logger.debug('Updated permissions for: {} | Perms: {}'.format(subreddit, permissions))
+        #self.logger.debug('Updated permissions for: {} | Perms: {}'.format(subreddit, permissions))
 
 
 
     #REDDIT SPECIFIC HERE
     def get_urls(self, item):
-        # takes a dict
+        # takes a dict or thing
+        self.logger.debug('About to parse for links via Soup')
         urls = []
         noLink = False
+        if not isinstance(item, dict):
+            item = self.create_dict_item(item)
+
         if isinstance(item, dict):
-            soup = BeautifulSoup(item['body'], 'html.parser')
-        elif isinstance(item, praw.models.Comment):
-            soup = BeautifulSoup(item.body_html, 'html.parser')
-        elif isinstance(item, praw.models.Submission):
             try:
-                soup = BeautifulSoup(item.selftext_html, 'html.parser')
-                #self.logger.debug(u'Soup: Parsing Self Text')
+                soup = BeautifulSoup(item['body'], 'html.parser')
+                self.logger.debug(u'Soup: Parsing Self Text')
             except TypeError: # if it's a direct link
-                urls.append(item.url)
+                urls.append(item['url'])
                 noLink = True
-                #self.logger.debug(u'Soup: Direct Link')
+                self.logger.debug(u'Soup: Direct Link')
 
         if noLink:
             return (item, urls)
@@ -222,7 +223,7 @@ class TheSentinel(object):
             if 'http' in link.get('href'):
                 urls.append(link.get('href'))
 
-        #self.logger.debug(u'Found all links in Soup')
+        self.logger.debug(u'Found all links in Soup: {}'.format(item))
 
         return (item, urls) # returns dict, list
 
@@ -242,7 +243,7 @@ class TheSentinel(object):
             temp = sentinel.canAction(thing)
             if temp:
                 queue.put(temp)
-                self.logger.debug(u'Put {} in queue'.format(temp.fullname))
+                self.logger.debug(u'Put {} in removal queue'.format(temp.fullname))
                 return True
         return False
 
@@ -259,12 +260,12 @@ class TheSentinel(object):
                 try:
                     blacklisted = k.hasBlacklisted(thing, url)
                     if blacklisted:
+                        self.logger.debug('Thing is blacklistd, about to put in removal queue: {}'.format(thing['thing_id']))
                         self.remove(thing)
                 except requests.exceptions.SSLError:
                     continue
 
     def isProcessed(self, subreddits):
-
         return self.database.isProcessed([str(x) for x in subreddits])
 
     #There's a bottleneck here reguarding praw and refresh() in praw.objects.Refreshable.
@@ -300,7 +301,7 @@ class TheSentinel(object):
                 'url': thing.url if type(thing) == praw.models.Submission else link,
                 'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
                 'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
-                'body': (thing.body if type(thing) != praw.models.Submission else thing.selftext),
+                'body': (thing.body_html if type(thing) != praw.models.Submission else thing.selftext_html),
                 }
             try:
                 data = self.getInfo(thing)
