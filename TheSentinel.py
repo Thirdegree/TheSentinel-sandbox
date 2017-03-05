@@ -123,23 +123,13 @@ class TheSentinel(object):
             self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))
             return None
 
-    # Turns a string into a dict
-    def create_object(self, item):
-        try:
-            return json.loads(item)
-        except Exception:
-            self.logger.warning('Unable to create dict from json object')
-            
-        
-
     def get_items(self):
         # returns (thing, [urls])
-        time.sleep(5)
         try:
             while not self.SentinelConsumer.processQueue.empty():
-                item = self.SentinelConsumer.processQueue.get()
+                item = self.SentinelConsumer.processQueue.get() # gets a json object out of a queue
                 if item:
-                    thing = self.create_object(item)
+                    thing = json.loads(item) # creates a dictionary item
                     if thing:
                         yield self.get_urls(thing)
         except requests.exceptions.HTTPError:
@@ -209,6 +199,7 @@ class TheSentinel(object):
 
     #REDDIT SPECIFIC HERE
     def get_urls(self, item):
+        # takes a dict
         urls = []
         noLink = False
         try:
@@ -231,7 +222,7 @@ class TheSentinel(object):
 
         #self.logger.debug(u'Found all links in Soup')
 
-        return (item, urls)
+        return (item, urls) # returns dict, list
 
     def getBot(self, sub):
         for sentinel, _ in self.sentinels:
@@ -244,6 +235,7 @@ class TheSentinel(object):
         return None
 
     def remove(self, thing):
+        # takes thing as a dict
         for sentinel, queue in self.sentinels:
             temp = sentinel.canAction(thing)
             if temp:
@@ -255,7 +247,7 @@ class TheSentinel(object):
     #REDDIT SPECIFIC HERE
     def needsRemoval(self, item):
         # thing is a dictionary
-        thing, urls = item
+        thing, urls = item # dict, list
         hasContent = 0
         for url in urls:
             hasContent = 1
@@ -309,7 +301,7 @@ class TheSentinel(object):
                 'body': (thing.body if type(thing) != praw.models.Submission else thing.selftext),
                 }
             try:
-                data = self.getInfo(self.create_dict_item(thing))
+                data = self.getInfo(thing)
                 temp = {
                     'media_author': [],
                     'media_channel_id': [],
@@ -371,9 +363,10 @@ class TheSentinel(object):
             t.start()
 
     def getInfo(self, thing, urls=[]):
+        # takes a PRAW thing object
         data = []
-        if thing: # returns dct for thing
-            thing, urls = self.get_urls(thing)
+        if thing:
+            thing, urls = self.get_urls(thing) # returns dict, list
         for url in urls:
             temp = None
             for i, k in self.processes.items():
@@ -398,7 +391,7 @@ class TheSentinel(object):
     #REDDIT SPECIFIC HERE
     def addBlacklist(self, thing, subreddit, urls=[], isGlobal=False, values_dict=None):
         try:
-            data = self.getInfo(self.create_dict_item(thing), urls)
+            data = self.getInfo(thing, urls)
         except KeyError:
             return None
         authors = []
@@ -421,7 +414,7 @@ class TheSentinel(object):
 
     #REDDIT SPECIFIC HERE
     def removeBlacklist(self, thing, subreddit, urls=[], values_dict=None):
-        data = self.getInfo(self.create_dict_item(thing), urls)
+        data = self.getInfo(thing, urls)
                 
         authors = []
         for i in data:
@@ -462,7 +455,7 @@ class TheSentinel(object):
             try:
                 for item in self.get_items():
                     try:
-                        self.needsRemoval(item)
+                        self.needsRemoval(item) # sends dict
                     except requests.exceptions.HTTPError:
                         continue
 

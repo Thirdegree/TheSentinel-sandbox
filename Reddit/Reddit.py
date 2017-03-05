@@ -86,14 +86,13 @@ class SentinelInstance():
         processed = []
         while not self.removalQueue.empty():
             data = self.removalQueue.get()
+            self.logger.info('Got data from rmeoval queue: {}'.format(data))
 
             if isinstance(data, dict):
-                # Data came from internal ToProcess queue
-                try:
+                try: # Data came from internal ToProcess queue
                     things = self.r.info([data['thing_id']])
                     self.logger.info('Data came from internal ToProcess: {}'.format(data['thing_id']))
-                # Data came from Dirtbag
-                except KeyError:
+                except KeyError: # Data came from Dirtbag
                     things = self.r.info([data['ThingID']])
                     self.logger.info('Data came from Dirtbag: {}'.format(data['ThingID']))
             # Else, is a thing object
@@ -102,7 +101,7 @@ class SentinelInstance():
                 
             for thing in things:
                 try:
-                    message = self.masterClass.getInfo(thing)
+                    message = self.masterClass.getInfo(thing) # sends a PRAW thing object
                 except KeyError:
                     message = [{
                         'media_author': None,
@@ -141,6 +140,7 @@ class SentinelInstance():
 
 
     def canAction(self, thing, subreddit=None):
+        # takes thing a a dict
         try:
             if not thing:
                 if any([subreddit.lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
@@ -148,9 +148,14 @@ class SentinelInstance():
                     return True
                 return False
             # Dict
-            if any([str(thing['Subreddit'.lower()]).lower() == str(x).lower() for x in self.subsModded]): # stupid workaround for the oauth shit
-                self.logger.debug('Thing {} matches subs bot mods'.format(thing['ThingID']))
-                return thing
+            try:
+                if any([str(thing['subreddit'.lower()]).lower() == str(x).lower() for x in self.subsModded]): # Sentinel uses 'subreddit' as the key
+                    self.logger.debug('Thing {} matches subs bot mods'.format(thing['ThingID']))
+                    return thing # returns a dict
+            except KeyError:
+                if any([str(thing['Subreddit'.lower()]).lower() == str(x).lower() for x in self.subsModded]): # Dirtbag uses 'Subreddit' as the key
+                    self.logger.debug('Thing {} matches subs bot mods'.format(thing['ThingID']))
+                    return thing # returns a dict
             return False
         except prawcore.exceptions.Forbidden:
             self.logger.debug('PRAW Forbidden Error')
@@ -325,8 +330,8 @@ class SentinelInstance():
                     shadowbanned.append(i)
                 else:
                     # Rabbit
-                    self.add_to_rabbit(i)
-        self.masterClass.markProcessed(toAdd)
+                    self.add_to_rabbit(i) # sending PRAW thing
+        self.masterClass.markProcessed(toAdd) # sending PRAW things
         for thing in shadowbanned:
             self.masterClass.markActioned(thing, type_of='botban')
 

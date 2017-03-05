@@ -34,6 +34,7 @@ class MediaProcess(object):
         return False
 
     def hasBlacklisted(self, thing, url):
+        # takes dict, string
         if not self.validateURL(url):
             self.logger.debug('Not valid media URL')
             return False
@@ -43,7 +44,7 @@ class MediaProcess(object):
             self.logger.warning("No information found for url - {}".format(url))
             return False
         for i in channels:
-            blacklisted = self.db.isBlacklisted(thing['Subreddit'], **i)
+            blacklisted = self.db.isBlacklisted(thing['subreddit'], **i)
             if blacklisted:
                 self.logger.debug('Channel is Blacklisted. URL: {}'.format(url))
                 return True
@@ -53,7 +54,7 @@ class MediaProcess(object):
                     if i['media_platform'] == 'YouTube':
                         temp = {
                             'ThingID': thing['thing_id'],
-                            'Subreddit': thing['Subreddit'],
+                            'Subreddit': thing['subreddit'],
                             'Author':{
                                 'Name': thing['author'],
                                 'Created': thing['Author_Created'],
