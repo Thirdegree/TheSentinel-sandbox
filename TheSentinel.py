@@ -95,7 +95,7 @@ class TheSentinel(object):
                 link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
 
             info_dict = {
-                'Subreddit': str(thing.subreddit),
+                'subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
                 'author': thing.author.name,
                 'Author_Created':  str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
@@ -202,16 +202,18 @@ class TheSentinel(object):
         # takes a dict
         urls = []
         noLink = False
-        try:
+        if isinstance(item, dict):
             soup = BeautifulSoup(item['body'], 'html.parser')
-            #self.logger.debug(u'Soup: Parsing Self Text')
-        except AttributeError: # if it's a comment
-            soup = BeautifulSoup(item['body'], 'html.parser')
-            #self.logger.debug(u'Soup: Parsing Comment')
-        except TypeError: # if it's a direct link
-            urls.append(item['url'])
-            noLink = True
-            #self.logger.debug(u'Soup: Direct Link')
+        elif isinstance(item, praw.models.Comment):
+            soup = BeautifulSoup(item.body_html, 'html.parser')
+        elif isinstance(item, praw.models.Submission):
+            try:
+                soup = BeautifulSoup(item.selftext_html, 'html.parser')
+                #self.logger.debug(u'Soup: Parsing Self Text')
+            except TypeError: # if it's a direct link
+                urls.append(item.url)
+                noLink = True
+                #self.logger.debug(u'Soup: Direct Link')
 
         if noLink:
             return (item, urls)
@@ -280,7 +282,7 @@ class TheSentinel(object):
                 link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
 
             info_dict = {
-                'Subreddit': str(thing.subreddit),
+                'subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
                 'author': str(thing.author),
                 'Author_Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
@@ -398,14 +400,14 @@ class TheSentinel(object):
         for i in data:
             i['thingid'] = thing.fullname
             i['author'] = str(thing.author) if thing else values_dict['modname']
-            i['Subreddit'] = (self.blacklistSub if isGlobal else str(subreddit))
+            i['subreddit'] = (self.blacklistSub if isGlobal else str(subreddit))
             i['thingcreated_utc'] = thing.created_utc if thing else time.time()
             try:
                 i['permalink'] = thing.permalink if thing else None
             except AttributeError:
                 i['permalink'] = None
             i['body'] = thing.body
-            self.logger.info(u'Adding to database: {} for sub r/{}'.format(i['thingid'], i['Subreddit']))
+            self.logger.info(u'Adding to database: {} for sub r/{}'.format(i['thingid'], i['subreddit']))
             success = self.database.addBlacklist(i)
             if success:
                 authors.append(i['media_author'])
@@ -418,10 +420,10 @@ class TheSentinel(object):
                 
         authors = []
         for i in data:
-            i['Subreddit'] = str(subreddit)
+            i['subreddit'] = str(subreddit)
             i['date'] = datetime.today()
             i['author'] = str(thing.author) if thing else values_dict['modname']
-            self.logger.info(u'Removing from database: {} for sub r/{}'.format(thing.fullname if thing else 'WebRequest', i['Subreddit']))
+            self.logger.info(u'Removing from database: {} for sub r/{}'.format(thing.fullname if thing else 'WebRequest', i['subreddit']))
             success = self.database.removeBlacklist(**i)
             if success:
                 authors.append(i['media_author'])

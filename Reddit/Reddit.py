@@ -118,7 +118,7 @@ class SentinelInstance():
                 seen = []
                 for item in message:
                     item['author'] = str(thing.author)
-                    item['Subreddit'] = str(thing.subreddit)
+                    item['subreddit'] = str(thing.subreddit)
                     item['permalink'] = perma
                     if item['media_author'] not in seen and item['media_author']:
                         self.notifier.send_message(str(thing.subreddit), item)
@@ -360,18 +360,20 @@ class SentinelInstance():
         try:
             if isinstance(thing, praw.models.Submission):
                 link = 'http://reddit.com/{}'.format(thing.id)
+                bodytext = thing.selftext
             elif isinstance(thing, praw.models.Message):
                 link = ''
             else:
-                link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
+                link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id)
+                bodytext = thing.body
 
             info_dict = {
-                'Subreddit': str(thing.subreddit),
+                'subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
                 'author': str(thing.author),
-                'Author_Created':  str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
-                'Author_CommentKarma': thing.author.comment_karma,
-                'Author_LinkKarma': thing.author.link_karma,
+                'Author_Created':  str(datetime.utcfromtimestamp(thing.author.created_utc).date()) if thing.author else '',
+                'Author_CommentKarma': thing.author.comment_karma if thing.author else '',
+                'Author_LinkKarma': thing.author.link_karma if thing.author else '',
                 'thingcreated_utc': str(datetime.utcfromtimestamp(thing.created_utc)),
                 'thingedited_utc': str(datetime.utcfromtimestamp(thing.edited)) if thing.edited else None,
                 'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
@@ -384,7 +386,7 @@ class SentinelInstance():
                 'url': str(thing.url) if type(thing) == praw.models.Submission else str(link),
                 'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
                 'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
-                'body': thing.body if type(thing) != praw.models.Submission else thing.selftext,
+                'body': bodytext,
                 }
             return info_dict
         except prawcore.exceptions.NotFound:
