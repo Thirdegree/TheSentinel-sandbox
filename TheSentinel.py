@@ -89,18 +89,32 @@ class TheSentinel(object):
         try:
             if isinstance(thing, praw.models.Submission):
                 link = 'http://reddit.com/{}'.format(thing.id)
+                url = str(thing.url) if thing.is_self == False else None
             elif isinstance(thing, praw.models.Message):
                 link = ''
+                url = None
             else:
-                link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
+                link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id)
+                url = None
+
+            # Shadowbanned/Deleted user handling
+            try:
+                authCreated = str(datetime.utcfromtimestamp(thing.author.created_utc).date())
+                authCKarma = thing.author.comment_karma
+                authLKarma = thing.author.link_karma
+            except Exception as e:
+                authCreated = None
+                authCKarma = None
+                authLKarma = None
+
 
             info_dict = {
                 'subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
-                'author': thing.author.name,
-                'Author_Created':  str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
-                'Author_CommentKarma': thing.author.comment_karma,
-                'Author_LinkKarma': thing.author.link_karma,
+                'author': str(thing.author),
+                'Author_Created': authCreated,
+                'Author_CommentKarma': authCKarma,
+                'Author_LinkKarma': authLKarma,
                 'thingcreated_utc': str(datetime.utcfromtimestamp(thing.created_utc)),
                 'thingedited_utc': str(datetime.utcfromtimestamp(thing.edited)) if thing.edited else None,
                 'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
@@ -110,7 +124,7 @@ class TheSentinel(object):
                 'media_platform': '',
                 'media_link': '',
                 'title': thing.title if type(thing) == praw.models.Submission else None,
-                'url': str(thing.url) if type(thing) == praw.models.Submission else str(link),
+                'url': url,
                 'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
                 'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
                 'body': thing.body_html if type(thing) != praw.models.Submission else thing.selftext_html,
@@ -118,7 +132,7 @@ class TheSentinel(object):
             self.logger.debug('Created dict for: {}'.format(info_dict['thing_id']))
             return info_dict
         except prawcore.exceptions.NotFound:
-            self.logger.warning('User deleted the comment/post, unable to get data. ThingID: {}'.format(thing.fullname))
+            self.logger.warning('Unable to get user data. ThingID: {}'.format(thing.fullname))
             return None
         except Exception as e:
             self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))
@@ -137,7 +151,7 @@ class TheSentinel(object):
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
         except:
-            self.logger.warning('some other get_items error')
+            self.logger.error('some other get_items error')
 
     def get_from_dirtbag(self):
         for item in iter(self.DirtbagConsumer.processQueue.get()):
@@ -204,26 +218,30 @@ class TheSentinel(object):
         self.logger.debug('About to parse for links via Soup')
         urls = []
         noLink = False
+        soup = None
         if not isinstance(item, dict):
             item = self.create_dict_item(item)
 
         if isinstance(item, dict):
-            try:
-                soup = BeautifulSoup(item['body'], 'html.parser')
-                self.logger.debug(u'Soup: Parsing Self Text')
-            except TypeError: # if it's a direct link
+            if item['url']:
                 urls.append(item['url'])
                 noLink = True
                 self.logger.debug(u'Soup: Direct Link')
+            else:
+                if item['body'] is not None and len(item['body']) >= 5:
+                    soup = BeautifulSoup(item['body'], 'html.parser')
+                    self.logger.debug(u'Soup: Parsing Self Text')              
 
         if noLink:
             return (item, urls)
 
-        for link in soup.find_all('a'):
-            if 'http' in link.get('href'):
-                urls.append(link.get('href'))
+        if soup:
+            for link in soup.find_all('a'):
+                if 'http' in link.get('href'):
+                    urls.append(link.get('href'))
 
-        self.logger.debug(u'Found all links in Soup: {}'.format(item))
+        self.logger.debug(u'Finished soup processing. Item: {}'.format(item))
+        self.logger.debug(u'Found all links in Soup: {}'.format(urls))
 
         return (item, urls) # returns dict, list
 
@@ -243,7 +261,10 @@ class TheSentinel(object):
             temp = sentinel.canAction(thing)
             if temp:
                 queue.put(temp)
-                self.logger.debug(u'Put {} in removal queue'.format(temp.fullname))
+                try:
+                    self.logger.debug(u'Put {} in removal queue'.format(temp['thing_id']))
+                except KeyError:
+                    self.logger.debug(u'Put {} in removal queue'.format(temp['ThingID']))
                 return True
         return False
 

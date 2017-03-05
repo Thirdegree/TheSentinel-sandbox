@@ -133,7 +133,7 @@ class Blacklist(Database):
     def markProcessed(self, kwargs_list):
         # takes dict
         if kwargs_list:
-            self.logger.debug("Adding {} things".format(len(kwargs_list)))
+            self.logger.debug("Adding {} things to the database via markProcessed".format(len(kwargs_list)))
             args = []
             args2 = []
             args3 = []

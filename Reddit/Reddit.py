@@ -150,7 +150,7 @@ class SentinelInstance():
             # Dict
             try:
                 if any([str(thing['subreddit'.lower()]).lower() == str(x).lower() for x in self.subsModded]): # Sentinel uses 'subreddit' as the key
-                    self.logger.debug('Thing {} matches subs bot mods'.format(thing['ThingID']))
+                    self.logger.debug('Thing {} matches subs bot mods'.format(thing['thing_id']))
                     return thing # returns a dict
             except KeyError:
                 if any([str(thing['Subreddit'.lower()]).lower() == str(x).lower() for x in self.subsModded]): # Dirtbag uses 'Subreddit' as the key
@@ -360,20 +360,32 @@ class SentinelInstance():
         try:
             if isinstance(thing, praw.models.Submission):
                 link = 'http://reddit.com/{}'.format(thing.id)
-                bodytext = thing.selftext
+                url = str(thing.url) if thing.is_self == False else None
             elif isinstance(thing, praw.models.Message):
                 link = ''
+                url = None
             else:
                 link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id)
-                bodytext = thing.body
+                url = None
+
+            # Shadowbanned/Deleted user handling
+            try:
+                authCreated = str(datetime.utcfromtimestamp(thing.author.created_utc).date())
+                authCKarma = thing.author.comment_karma
+                authLKarma = thing.author.link_karma
+            except Exception as e:
+                authCreated = None
+                authCKarma = None
+                authLKarma = None
+
 
             info_dict = {
                 'subreddit': str(thing.subreddit),
                 'thing_id': thing.fullname,
                 'author': str(thing.author),
-                'Author_Created':  str(datetime.utcfromtimestamp(thing.author.created_utc).date()) if thing.author else '',
-                'Author_CommentKarma': thing.author.comment_karma if thing.author else '',
-                'Author_LinkKarma': thing.author.link_karma if thing.author else '',
+                'Author_Created': authCreated,
+                'Author_CommentKarma': authCKarma,
+                'Author_LinkKarma': authLKarma,
                 'thingcreated_utc': str(datetime.utcfromtimestamp(thing.created_utc)),
                 'thingedited_utc': str(datetime.utcfromtimestamp(thing.edited)) if thing.edited else None,
                 'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
@@ -383,14 +395,14 @@ class SentinelInstance():
                 'media_platform': '',
                 'media_link': '',
                 'title': thing.title if type(thing) == praw.models.Submission else None,
-                'url': str(thing.url) if type(thing) == praw.models.Submission else str(link),
+                'url': url,
                 'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
                 'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
-                'body': bodytext,
+                'body': thing.body_html if type(thing) != praw.models.Submission else thing.selftext_html,
                 }
             return info_dict
         except prawcore.exceptions.NotFound:
-            self.logger.warning('User deleted the comment/post, unable to get data. ThingID: {}'.format(thing.fullname))
+            self.logger.warning('Unable to get user data. ThingID: {}'.format(thing.fullname))
             return None
         except Exception as e:
             self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))

@@ -34,7 +34,7 @@ class Rabbit_Consumer():
         self.channel.queue_declare(queue=QueueName, durable=durable, exclusive=exclusive, auto_delete=auto_delete)
         self.channel.queue_bind(exchange=self.exchange, queue=QueueName, routing_key=self.routing_key)
 
-        self.logger.info('Initialized Rabbit Consumer. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
+        self.logger.debug('Initialized Rabbit Consumer. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
 
     def callback(self, ch, method, properties, body):
         self.processQueue.put(body)
@@ -57,7 +57,7 @@ class Rabbit_Producer():
         self.channel = self.connection.channel()
         self.channel.exchange_declare(durable=durable, exchange=exchange, type='direct')
 
-        self.logger.info('Initialized Rabbit Producer. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
+        self.logger.debug('Initialized Rabbit Producer. Exchange: {}, Routing Key: {}'.format(self.exchange, self.routing_key))
 
     def send(self, message):
         self.channel.basic_publish(exchange=self.exchange,

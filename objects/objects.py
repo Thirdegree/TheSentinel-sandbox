@@ -70,11 +70,11 @@ class MediaProcess(object):
 
                         try:
                             # Initializes the Dirtbag Rabbit Producer
-                            dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV')
+                            dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV', QueueName='DirtbagDEV')
                             dirtbagProducer.send(json.dumps(temp))
                         except Exception as e:
                             self.logger.error('Unable to create/send data to Dirtbag')
-                            dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV')
+                            dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV', QueueName='DirtbagDEV')
                             dirtbagProducer.send(json.dumps(temp))
 
                 except Exception:
