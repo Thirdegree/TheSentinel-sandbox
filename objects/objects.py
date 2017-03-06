@@ -72,12 +72,12 @@ class MediaProcess(object):
                             # Initializes the Dirtbag Rabbit Producer
                             dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV', QueueName='DirtbagDEV')
                             dirtbagProducer.send(json.dumps(temp))
-                            self.logger.debug('Sent to Dirtbag for Analysis: {}'.format(temp['ThingID']))
+                            self.logger.debug('Sent to Dirtbag for Analysis: {}'.format(temp))
                         except Exception as e:
                             self.logger.error('Unable to create/send data to Dirtbag')
                             dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV', QueueName='DirtbagDEV')
                             dirtbagProducer.send(json.dumps(temp))
-                            self.logger.debug('Sent to Dirtbag for Analysis: {}'.format(temp['ThingID']))
+                            self.logger.debug('Sent to Dirtbag for Analysis: {}'.format(temp))
 
                 except Exception:
                     self.logger.error('Unable to send data to Dirtbag')
@@ -145,7 +145,7 @@ class APIProcess(object):
             raise KeyError("No match found - %s" % url)
 
     def getInformation(self, url):
-        self.logger.debug(u'Getting Information. URL: {}'.format(url))
+        #self.logger.debug(u'Getting Information. URL: {}'.format(url))
         try:
             key, data = self._getData(url)
         except KeyError:
@@ -195,7 +195,7 @@ class TwitterAPIProcess(APIProcess):
         super(TwitterAPIProcess, self).__init__(Twitter_URLS, regexs, datapulls.TwitterAPIPulls)
 
     def getInformation(self, url):
-        self.logger.debug(u'Getting Twitter Information. URL: {}'.format(url))
+        #self.logger.debug(u'Getting Twitter Information. URL: {}'.format(url))
         try:
             key, data = self._getData(url)
         except KeyError as e:

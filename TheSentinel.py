@@ -131,10 +131,10 @@ class TheSentinel(object):
                 'flair_text': thing.link_flair_text if (type(thing) == praw.models.Submission and thing.link_flair_text is not None) else '',
                 'body': bodytext,
                 }
-            self.logger.debug('Created dict for: {}'.format(info_dict['thing_id']))
+            self.logger.debug('Created dict for ThingID: {}'.format(info_dict['thing_id']))
             return info_dict
         except prawcore.exceptions.NotFound:
-            self.logger.warning('Unable to get user data. ThingID: {}'.format(thing.fullname))
+            self.logger.warning('Unable to get user data. Maybe Shadowbanned. ThingID: {}'.format(thing.fullname))
             return None
         except Exception as e:
             self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))
@@ -152,9 +152,6 @@ class TheSentinel(object):
                         yield self.get_urls(thing)
         except requests.exceptions.HTTPError:
             self.logger.warning(u"HTTPError - continue")
-        except:
-            self.logger.error('some other get_items error')
-            time.sleep(30)
 
     def get_from_dirtbag(self):
         for item in iter(self.DirtbagConsumer.processQueue.get()):
@@ -218,7 +215,6 @@ class TheSentinel(object):
     #REDDIT SPECIFIC HERE
     def get_urls(self, item):
         # takes a dict or thing
-        self.logger.debug('About to parse for links via Soup')
         urls = []
         noLink = False
         soup = None
@@ -243,9 +239,7 @@ class TheSentinel(object):
                 if 'http' in link.get('href'):
                     urls.append(link.get('href'))
 
-        self.logger.debug(u'Finished soup processing. Item: {}'.format(item))
-        self.logger.debug(u'Found all links in Soup: {}'.format(urls))
-
+        self.logger.debug(u'Found all links in Soup. Thing: {} | URLs: {}'.format(item['thing_id'], urls))
         return (item, urls) # returns dict, list
 
     def getBot(self, sub):
@@ -265,9 +259,9 @@ class TheSentinel(object):
             if temp:
                 queue.put(temp)
                 try:
-                    self.logger.debug(u'Put {} in removal queue'.format(temp['thing_id']))
+                    self.logger.debug(u'Put Sentinel Thing: {} in removal queue'.format(temp['thing_id']))
                 except KeyError:
-                    self.logger.debug(u'Put {} in removal queue'.format(temp['ThingID']))
+                    self.logger.debug(u'Put Dirtbag Thing: {} in removal queue'.format(temp['ThingID']))
                 return True
         return False
 
@@ -284,7 +278,7 @@ class TheSentinel(object):
                 try:
                     blacklisted = k.hasBlacklisted(thing, url)
                     if blacklisted:
-                        self.logger.debug('Thing is blacklistd, about to put in removal queue: {}'.format(thing['thing_id']))
+                        self.logger.debug('Item blacklistd, about to put in removal queue: {}'.format(thing['thing_id']))
                         self.remove(thing)
                 except requests.exceptions.SSLError:
                     continue
@@ -369,6 +363,7 @@ class TheSentinel(object):
             thing, urls = self.get_urls(thing) # returns dict, list
         for url in urls:
             temp = None
+            self.logger.debug(u'Getting Media API Information. URL: {}'.format(url))
             for i, k in self.processes.items():
                 try:
                     temp = k.getInformation(url)

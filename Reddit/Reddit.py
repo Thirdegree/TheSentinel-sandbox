@@ -73,31 +73,31 @@ class SentinelInstance():
     def globalMessage(self, message):
         if message.author not in self.can_global_action:
             message.reply("You do not have the permissions to do this.")
-            raise KeyError
+            self.logger.warning('Unauthorized Global Message Request. Requester: {}'.format(message.author))
+            raise KeyError('Unauthorized Global Message Request. Requester: {}'.format(message.author))
         matchstring = r"(.*)\n\n---\n\n(.*)"
         match = re.match(matchstring, message.body)
         if not match:
             return False
         return self.masterClass.messageSubreddits(match.group(1), match.group(2))
 
-
-
     def clearQueue(self):
         processed = []
         while not self.removalQueue.empty():
             data = self.removalQueue.get()
-            self.logger.info('Got data from rmeoval queue: {}'.format(data))
+            self.debug.info('Processing removal queue: {}'.format(data))
 
             if isinstance(data, dict):
                 try: # Data came from internal ToProcess queue
                     things = self.r.info([data['thing_id']])
-                    self.logger.info('Data came from internal ToProcess: {}'.format(data['thing_id']))
+                    self.logger.debug('Data came from internal ToProcess: {}'.format(data['thing_id']))
                 except KeyError: # Data came from Dirtbag
                     things = self.r.info([data['ThingID']])
-                    self.logger.info('Data came from Dirtbag: {}'.format(data['ThingID']))
+                    self.logger.debug('Data came from Dirtbag: {}'.format(data['ThingID']))
             # Else, is a thing object
             else:
                 things = self.r.info([data.fullname])
+                self.logger.debug('Data is a thing. Why is a thing here? ID: {}'.format(data.fullname))
                 
             for thing in things:
                 try:
@@ -150,11 +150,11 @@ class SentinelInstance():
             # Dict
             try:
                 if any([str(thing['subreddit'.lower()]).lower() == str(x).lower() for x in self.subsModded]): # Sentinel uses 'subreddit' as the key
-                    self.logger.debug('Thing {} matches subs bot mods'.format(thing['thing_id']))
+                    self.logger.debug('Sentinel Thing {} matches subs bot mods'.format(thing['thing_id']))
                     return thing # returns a dict
             except KeyError:
                 if any([str(thing['Subreddit'.lower()]).lower() == str(x).lower() for x in self.subsModded]): # Dirtbag uses 'Subreddit' as the key
-                    self.logger.debug('Thing {} matches subs bot mods'.format(thing['ThingID']))
+                    self.logger.debug('Dirtbag Thing {} matches subs bot mods'.format(thing['ThingID']))
                     return thing # returns a dict
             return False
         except prawcore.exceptions.Forbidden:
@@ -292,14 +292,14 @@ class SentinelInstance():
         self.logger.info('{} | Getting Content'.format(self.me))
         self.logger.debug('{} | Getting Reddit New'.format(self.me))
         for post in self.modMulti.new(limit=200):
-            if not post.fullname in self.masterClass.done:# and not self.masterClass.isProcessed(post):
+            if not post.fullname in self.masterClass.done:
                 self.logger.debug("{} | Added Post to toAdd - {}".format(self.me, post.fullname))
                 toAdd.append(post)
                 self.masterClass.done.add(post.fullname)
 
         self.logger.debug('{} | Getting Reddit Comments'.format(self.me))
         for comment in self.modMulti.comments(limit=300):
-            if not comment.fullname in self.masterClass.done:# and not self.masterClass.isProcessed(comment):
+            if not comment.fullname in self.masterClass.done:
                 self.logger.debug("{} | Added comment to toAdd - {}".format(self.me, comment.fullname))
                 toAdd.append(comment)
                 self.masterClass.done.add(comment.fullname)
@@ -308,14 +308,14 @@ class SentinelInstance():
         editlist = []
         for edit in self.modMulti.mod.edited(limit=100):
             # stupid why would that make sesnse after edited
-            if not edit.fullname in self.edited_done:# and not self.masterClass.isProcessed(edit):
+            if not edit.fullname in self.edited_done:
                 self.logger.debug("{} | Added edit to toAdd - {}".format(self.me, edit.fullname))
                 editlist.append(edit)
                 self.edited_done.append(edit.fullname)
 
         self.logger.debug('{} | Getting Reddit Spam'.format(self.me))
         for spam in self.modMulti.mod.spam(limit=200):
-            if not spam.fullname in self.masterClass.done:# and not self.masterClass.isProcessed(spam):
+            if not spam.fullname in self.masterClass.done:
                 self.logger.debug("{} | Added spam to toAdd - {}".format(self.me, spam.fullname))                
                 toAdd.append(spam)
                 self.masterClass.done.add(spam.fullname)
@@ -345,16 +345,16 @@ class SentinelInstance():
             # Make sure we're sending to a Producer that maches the routing key we want
             if self.SentinelProducer.routing_key == routing_key:
                 self.SentinelProducer.send(data)
-                #self.logger.info('sent data via add_to_rabbit')
+                self.logger.debug('Sent data via add_to_rabbit. Data: {}'.format(data))
             else:
                 self.SentinelProducer = Rabbit_Producer(exchange=exchange, routing_key=routing_key, QueueName=self.rk_Sentinel_ToProcess)
                 self.SentinelProducer.send(data)
-                #self.logger.info('sent data via add_to_rabbit')
+                self.logger.debug('Sent data via add_to_rabbit. Data: {}'.format(data))
         except Exception as e:
             self.logger.error('Unable to send to SentinelProducer, likely dead connection')
             self.SentinelProducer = Rabbit_Producer(exchange=exchange, routing_key=routing_key, QueueName=self.rk_Sentinel_ToProcess)
             self.SentinelProducer.send(data)
-            #self.logger.info('sent data via add_to_rabbit')
+            self.logger.debug('Sent data via add_to_rabbit. Data: {}'.format(data))
 
     def create_dict_item(self, thing):
         try:
@@ -402,9 +402,10 @@ class SentinelInstance():
                 'flair_text': thing.link_flair_text if (type(thing) == praw.models.Submission and thing.link_flair_text is not None) else '',
                 'body': bodytext,
                 }
+            self.logger.debug('Created dict for ThingID: {}'.format(info_dict['thing_id']))
             return info_dict
         except prawcore.exceptions.NotFound:
-            self.logger.warning('Unable to get user data. ThingID: {}'.format(thing.fullname))
+            self.logger.warning('Unable to get user data. Maybe Shadowbanned. ThingID: {}'.format(thing.fullname))
             return None
         except Exception as e:
             self.logger.error('Unable to create_dict_item. ThingID: {}'.format(thing.fullname))
@@ -587,11 +588,9 @@ class SentinelInstance():
             try:
                 self.masterClass.done = set(self.masterClass.isProcessed(self.subsModded))
                 self.shadowbans = self.shadowban_db.get_shadowbanned()
-                #self.modMulti = self.r.subreddit('mod')
 
                 self.checkContent()
                 self.checkInbox()
-                #self.checkModmail() # Not Used
                 self.clearQueue()
                 self.modlogger.log()
                 self.modmailArchiver.log()
