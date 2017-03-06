@@ -125,7 +125,7 @@ class SentinelInstance():
                         self.notifier.send_message('yt_killer', item)
                         seen.append(item['media_author'])
 
-                thing.subreddit.mod.remove() # https://www.reddit.com/r/redditdev/comments/5h2r1c/-/daxk71u/
+                thing.mod.remove()
                 self.masterClass.markActioned(thing, type_of='tsb')
                 processed.append(thing.fullname)
         if processed:
@@ -360,13 +360,15 @@ class SentinelInstance():
         try:
             if isinstance(thing, praw.models.Submission):
                 link = 'http://reddit.com/{}'.format(thing.id)
-                url = str(thing.url) if thing.is_self == False else None
+                url = str(thing.url) if thing.is_self == False else ''
+                bodytext = thing.selftext_html if (thing.is_self == True and thing.selftext_html is not None) else ''
             elif isinstance(thing, praw.models.Message):
                 link = ''
-                url = None
+                url = ''
             else:
                 link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id)
-                url = None
+                url = ''
+                bodytext = thing.body_html if thing.body_html is not None else ''
 
             # Shadowbanned/Deleted user handling
             try:
@@ -374,9 +376,9 @@ class SentinelInstance():
                 authCKarma = thing.author.comment_karma
                 authLKarma = thing.author.link_karma
             except Exception as e:
-                authCreated = None
-                authCKarma = None
-                authLKarma = None
+                authCreated = ''
+                authCKarma = ''
+                authLKarma = ''
 
 
             info_dict = {
@@ -388,17 +390,17 @@ class SentinelInstance():
                 'Author_LinkKarma': authLKarma,
                 'thingcreated_utc': str(datetime.utcfromtimestamp(thing.created_utc)),
                 'thingedited_utc': str(datetime.utcfromtimestamp(thing.edited)) if thing.edited else None,
-                'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
+                'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else '',
                 'permalink': link,
                 'media_author': '',
                 'media_channel_id': '',
                 'media_platform': '',
                 'media_link': '',
-                'title': thing.title if type(thing) == praw.models.Submission else None,
+                'title': thing.title if type(thing) == praw.models.Submission else '',
                 'url': url,
-                'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
-                'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
-                'body': thing.body_html if type(thing) != praw.models.Submission else thing.selftext_html,
+                'flair_class': thing.link_flair_css_class if (type(thing) == praw.models.Submission and thing.link_flair_css_class is not None) else '',
+                'flair_text': thing.link_flair_text if (type(thing) == praw.models.Submission and thing.link_flair_text is not None) else '',
+                'body': bodytext,
                 }
             return info_dict
         except prawcore.exceptions.NotFound:

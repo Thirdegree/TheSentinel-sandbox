@@ -89,13 +89,15 @@ class TheSentinel(object):
         try:
             if isinstance(thing, praw.models.Submission):
                 link = 'http://reddit.com/{}'.format(thing.id)
-                url = str(thing.url) if thing.is_self == False else None
+                url = str(thing.url) if thing.is_self == False else ''
+                bodytext = thing.selftext_html if (thing.is_self == True and thing.selftext_html is not None) else ''
             elif isinstance(thing, praw.models.Message):
                 link = ''
-                url = None
+                url = ''
             else:
                 link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id)
-                url = None
+                url = ''
+                bodytext = thing.body_html if thing.body_html is not None else ''
 
             # Shadowbanned/Deleted user handling
             try:
@@ -103,9 +105,9 @@ class TheSentinel(object):
                 authCKarma = thing.author.comment_karma
                 authLKarma = thing.author.link_karma
             except Exception as e:
-                authCreated = None
-                authCKarma = None
-                authLKarma = None
+                authCreated = ''
+                authCKarma = ''
+                authLKarma = ''
 
 
             info_dict = {
@@ -117,17 +119,17 @@ class TheSentinel(object):
                 'Author_LinkKarma': authLKarma,
                 'thingcreated_utc': str(datetime.utcfromtimestamp(thing.created_utc)),
                 'thingedited_utc': str(datetime.utcfromtimestamp(thing.edited)) if thing.edited else None,
-                'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
+                'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else '',
                 'permalink': link,
                 'media_author': '',
                 'media_channel_id': '',
                 'media_platform': '',
                 'media_link': '',
-                'title': thing.title if type(thing) == praw.models.Submission else None,
+                'title': thing.title if type(thing) == praw.models.Submission else '',
                 'url': url,
-                'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
-                'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
-                'body': thing.body_html if type(thing) != praw.models.Submission else thing.selftext_html,
+                'flair_class': thing.link_flair_css_class if (type(thing) == praw.models.Submission and thing.link_flair_css_class is not None) else '',
+                'flair_text': thing.link_flair_text if (type(thing) == praw.models.Submission and thing.link_flair_text is not None) else '',
+                'body': bodytext,
                 }
             self.logger.debug('Created dict for: {}'.format(info_dict['thing_id']))
             return info_dict
@@ -152,6 +154,7 @@ class TheSentinel(object):
             self.logger.warning(u"HTTPError - continue")
         except:
             self.logger.error('some other get_items error')
+            time.sleep(30)
 
     def get_from_dirtbag(self):
         for item in iter(self.DirtbagConsumer.processQueue.get()):
@@ -296,34 +299,7 @@ class TheSentinel(object):
         if things:
             self.logger.debug(u"Preparing to add {} things to the database".format(len(things)))
         for thing in things:
-            if isinstance(thing, praw.models.Submission):
-                link = 'http://reddit.com/{}'.format(thing.id)
-            elif isinstance(thing, praw.models.Message):
-                link = ''
-            else:
-                link = 'http://reddit.com/comments/{}/-/{}'.format(thing.link_id[3:], thing.id) 
-
-            info_dict = {
-                'subreddit': str(thing.subreddit),
-                'thing_id': thing.fullname,
-                'author': str(thing.author),
-                'Author_Created': str(datetime.utcfromtimestamp(thing.author.created_utc).date()),
-                'Author_CommentKarma': thing.author.comment_karma,
-                'Author_LinkKarma': thing.author.link_karma,
-                'thingcreated_utc': datetime.utcfromtimestamp(thing.created_utc),
-                'thingedited_utc': datetime.utcfromtimestamp(thing.edited) if thing.edited else None,
-                'parent_thing_id': thing.submission.fullname if type(thing) == praw.models.Comment else None,
-                'permalink': link,
-                'media_author': '',
-                'media_channel_id': '',
-                'media_platform': '',
-                'media_link': '',
-                'title': thing.title if type(thing) == praw.models.Submission else None,
-                'url': thing.url if type(thing) == praw.models.Submission else link,
-                'flair_class': thing.link_flair_css_class if type(thing) == praw.models.Submission else None,
-                'flair_text': thing.link_flair_text if type(thing) == praw.models.Submission else None,
-                'body': (thing.body_html if type(thing) != praw.models.Submission else thing.selftext_html),
-                }
+            info_dict = self.create_dict_item(thing)
             try:
                 data = self.getInfo(thing)
                 temp = {

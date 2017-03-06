@@ -27,16 +27,16 @@ class MediaProcess(object):
 
 
     def validateURL(self, url):
-        self.logger.debug(u'Checking if URL in MediaURLs list. URL: {}'.format(url))
         for i in self.mediaURLs:
             if i in url:
+                self.logger.debug(u'URL in MediaURLs list. URL: {}'.format(url))
                 return True
         return False
 
     def hasBlacklisted(self, thing, url):
         # takes dict, string
         if not self.validateURL(url):
-            self.logger.debug('Not valid media URL')
+            #self.logger.debug('Not valid media URL')
             return False
         try:
             channels = self.APIProcess.getInformation(url)
@@ -72,10 +72,12 @@ class MediaProcess(object):
                             # Initializes the Dirtbag Rabbit Producer
                             dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV', QueueName='DirtbagDEV')
                             dirtbagProducer.send(json.dumps(temp))
+                            self.logger.debug('Sent to Dirtbag for Analysis: {}'.format(temp['ThingID']))
                         except Exception as e:
                             self.logger.error('Unable to create/send data to Dirtbag')
                             dirtbagProducer = Rabbit_Producer(exchange='Sentinel', routing_key='Dirtbag_ToAnalyzeDEV', QueueName='DirtbagDEV')
                             dirtbagProducer.send(json.dumps(temp))
+                            self.logger.debug('Sent to Dirtbag for Analysis: {}'.format(temp['ThingID']))
 
                 except Exception:
                     self.logger.error('Unable to send data to Dirtbag')
@@ -193,7 +195,7 @@ class TwitterAPIProcess(APIProcess):
         super(TwitterAPIProcess, self).__init__(Twitter_URLS, regexs, datapulls.TwitterAPIPulls)
 
     def getInformation(self, url):
-        self.logger.debug(u'Getting Information. URL: {}'.format(url))
+        self.logger.debug(u'Getting Twitter Information. URL: {}'.format(url))
         try:
             key, data = self._getData(url)
         except KeyError as e:
@@ -280,7 +282,7 @@ class GAPIProcess(APIProcess):
         self.api_key = api_key
 
     def _getData(self, url):
-        self.logger.debug('Getting URL Redirect Data')
+        self.logger.debug('Getting YouTube URL Redirect Data')
         try:
             url = requests.get(url).url #deals with redirects
         except requests.exceptions.ConnectionError:
@@ -294,8 +296,8 @@ class GAPIProcess(APIProcess):
                     break
             return (i, match.group(1))
         except AttributeError:
-            self.logger.debug(u'No Match Found. URL: {}'.format(url))
-            raise KeyError("No match found - %s" % url)
+            self.logger.debug(u'No YouTube Match Found. URL: {}'.format(url))
+            raise KeyError("No YouTube match found - %s" % url)
 
 class DMAPIProcess(APIProcess):
     def __init__(self):
@@ -326,8 +328,8 @@ class DMAPIProcess(APIProcess):
                 self.logger.debug('DM Match Found')
                 return ('username', match.group(1))
             except AttributeError:
-                self.logger.debug(u'No match found. URL: {}'.format(url))
-                raise KeyError("No match found - %s" % url)
+                self.logger.debug(u'No DM match found. URL: {}'.format(url))
+                raise KeyError("No DM match found - %s" % url)
 
 class VMOAPIProcess(APIProcess):
     def __init__(self):
@@ -365,8 +367,8 @@ class VMOAPIProcess(APIProcess):
                 self.logger.debug('Viemo Match Found')
                 return ('video', match.group(1))
             except AttributeError:
-                self.logger.debug('No match found. URL: {}'.format(url))
-                raise KeyError("No match found - %s" % url)
+                self.logger.debug('No Vimeo match found. URL: {}'.format(url))
+                raise KeyError("No Vimeo match found - %s" % url)
 
     def _getJSONResponse(self, data, key):
         try:
@@ -412,9 +414,9 @@ class SCAPIProcess(APIProcess):
                 alldata = self.data_pulls[key](jsonResponse) or []
             except TypeError:
                 return []
-            self.logger.debug('Received data response')
+            self.logger.debug('Received SC data response')
             if jsonResponse['kind'] == 'playlist':
-                self.logger.debug('Parsing playlist data')
+                self.logger.debug('Parsing SC playlist data')
                 key, jsonResponse = self._getJSONResponse(data, 'playlist videos')
                 try:
                     alldata += self.data_pulls['playlist videos'](jsonResponse)
