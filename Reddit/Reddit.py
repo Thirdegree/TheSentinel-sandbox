@@ -82,6 +82,7 @@ class SentinelInstance():
         return self.masterClass.messageSubreddits(match.group(1), match.group(2))
 
     def clearQueue(self):
+        self.logger.info('About to clear the removal queue')
         processed = []
         while not self.removalQueue.empty():
             data = self.removalQueue.get()
@@ -137,7 +138,6 @@ class SentinelInstance():
             if str(mod) == mod_name:
                 self.logger.debug("{} | Moderator {} perimissions {}".format(self.me, mod, mod.mod_permissions))
                 return mod.mod_permissions
-
 
     def canAction(self, thing, subreddit=None):
         # takes thing a a dict
@@ -210,7 +210,6 @@ class SentinelInstance():
             self.logger.info("{} | Forcing Mod Mail history for subs: {}".format(self.me, [str(i) for i in modmailArchiver.subs_intersec]))
         for thread in threads:
             thread.start()
-
 
     def checkInbox(self):
         for message in self.r.inbox.unread(limit=None):
@@ -334,6 +333,7 @@ class SentinelInstance():
         self.masterClass.markProcessed(toAdd) # sending PRAW things
         for thing in shadowbanned:
             self.masterClass.markActioned(thing, type_of='botban')
+        self.logger.debug('Done with checkContent')
 
     def add_to_rabbit(self, item, exchange='Sentinel', routing_key='Sentinel_ToProcess'):
         if isinstance(item, dict):
@@ -402,7 +402,7 @@ class SentinelInstance():
                 'flair_text': thing.link_flair_text if (type(thing) == praw.models.Submission and thing.link_flair_text is not None) else '',
                 'body': bodytext,
                 }
-            self.logger.debug('Created dict for ThingID: {}'.format(info_dict['thing_id']))
+            self.logger.debug('Reddit.py created dict for ThingID: {}'.format(info_dict['thing_id']))
             return info_dict
         except prawcore.exceptions.NotFound:
             self.logger.warning('Unable to get user data. Maybe Shadowbanned. ThingID: {}'.format(thing.fullname))
@@ -419,7 +419,6 @@ class SentinelInstance():
         return False
 
     def add_user_shadowban(self, thing):
-        
         try:
             regex_subreddits = "r\/(\w*)"
             regex_username = "u\/(\w*)"
@@ -450,7 +449,6 @@ class SentinelInstance():
         return False
 
     def remove_user_shadowban(self, thing):
-
         regex_subreddits = "r/(\w*)"
         regex_username = "u/(\w*)"
         subs = re.findall(regex_subreddits, thing.body)

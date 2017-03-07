@@ -131,7 +131,7 @@ class TheSentinel(object):
                 'flair_text': thing.link_flair_text if (type(thing) == praw.models.Submission and thing.link_flair_text is not None) else '',
                 'body': bodytext,
                 }
-            self.logger.debug('Created dict for ThingID: {}'.format(info_dict['thing_id']))
+            self.logger.debug('TheSentinel.py created dict for ThingID: {}'.format(info_dict['thing_id']))
             return info_dict
         except prawcore.exceptions.NotFound:
             self.logger.warning('Unable to get user data. Maybe Shadowbanned. ThingID: {}'.format(thing.fullname))
@@ -215,6 +215,7 @@ class TheSentinel(object):
     #REDDIT SPECIFIC HERE
     def get_urls(self, item):
         # takes a dict or thing
+        self.logger.debug('Parsing Soup: {}'.format(item))
         urls = []
         noLink = False
         soup = None
@@ -293,25 +294,26 @@ class TheSentinel(object):
         if things:
             self.logger.debug(u"Preparing to add {} things to the database".format(len(things)))
         for thing in things:
-            info_dict = self.create_dict_item(thing)
-            try:
-                data = self.getInfo(thing)
-                temp = {
-                    'media_author': [],
-                    'media_channel_id': [],
-                    'media_platform': [],
-                    'media_link': [],
-                }
-                for i in data:
-                    for k, v in i.items():
-                        if k not in info_dict:
-                            temp[k] = [v]
-                        else:
-                            temp[k].append(v)
-                for k, v in temp.items():
-                    info_dict[k] = ",".join([str(i) for i in v])
-            except KeyError:
-                pass
+            if not isinstance(thing, dict):
+                info_dict = self.create_dict_item(thing)
+                try:
+                    data = self.getInfo(thing)
+                    temp = {
+                        'media_author': [],
+                        'media_channel_id': [],
+                        'media_platform': [],
+                        'media_link': [],
+                    }
+                    for i in data:
+                        for k, v in i.items():
+                            if k not in info_dict:
+                                temp[k] = [v]
+                            else:
+                                temp[k].append(v)
+                    for k, v in temp.items():
+                        info_dict[k] = ",".join([str(i) for i in v])
+                except KeyError:
+                    pass
             toDo.append(info_dict)
             self.logger.debug(u"Prepared item {}".format(thing.fullname))
         self.database.markProcessed(toDo)
