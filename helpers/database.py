@@ -461,17 +461,6 @@ class ShadowbanDatabase(Database):
                 c.execute(statement, kwargs)
         return True
 
-
-class TheTraveler(NSA):
-    def __init__(self):
-        super(TheTraveler, self).__init__()
-
-
-class Zion(SlackHooks, Blacklist):
-    def __init__(self):
-        super(Zion, self).__init__()
-
-
 class ModmailArchiverDB(Database):
     def __init__(self):
         super(ModmailArchiverDB, self).__init__()
@@ -510,4 +499,51 @@ class ModmailArchiverDB(Database):
             with conn.cursor('is_logged') as c:
                 c.execute('SELECT * FROM modmail WHERE thing_id=%s', (thing_id,))
                 return bool(c.fetchone())
+
+class DomainBlacklistDB(Database):
+    def __init__(self):
+        super(DomainBlacklistDB, self).__init__()
+        self.domain_conn = self.get_conn()
+        with self.domain_conn as conn:
+            with conn.cursor() as c:
+                c.execute("SET CLIENT_ENCODING TO 'UTF8';")
+
+    def get_subs_enabled(self):
+        execString1 = "SELECT subreddit_name FROM subreddit WHERE domainblacklist_enabled=true"
+        with self.domain_conn as conn:
+            with conn.cursor('get_subs_enabled') as c:
+
+                c.execute(execString1)
+                fetched = c.fetchall()
+        if fetched:
+            return [i[0] for i in fetched]
+        return []
+
+    def get_blacklisted(self, subs):
+        execString1 = "SELECT subreddit, domain FROM domain_blacklist WHERE subreddit=ANY(%s)"
+        with self.domain_conn as conn:
+            with conn.cursor() as c:
+                c.execute(execString1, subs)
+                fetched = c.fetchall()
+
+        blacklisted = {}
+        for subreddit, domain in fetched:
+            if subreddit not in blacklisted:
+                blacklisted[subreddit] = [domain]
+            else:
+                blacklisted[subreddit].append(domain)
+
+        return blacklisted
+
+class TheTraveler(NSA):
+    def __init__(self):
+        super(TheTraveler, self).__init__()
+
+
+class Zion(SlackHooks, Blacklist):
+    def __init__(self):
+        super(Zion, self).__init__()
+
+
+
 

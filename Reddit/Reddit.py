@@ -7,6 +7,7 @@ from ..objects import Memcache
 from ..ModLogger import ModLogger
 from ..ModmailArchiver import ModmailArchiver
 from ..exceptions import TooFrequent
+from ..DomainBlacklist import DomainBlacklist
 import prawcore.exceptions
 
 
@@ -39,6 +40,7 @@ class SentinelInstance():
         self.notifier = SlackNotifier()
         self.modlogger = ModLogger(self.r, [str(i) for i in self.subsModded])
         self.modmailArchiver = ModmailArchiver(self.r, [str(i) for i in self.subsModded])
+        self.domainBlacklist = DomainBlacklist(self.r, [str(i) for i in self.subsModded])
         self.edited_done = deque()
         self.shadowban_db = ShadowbanDatabase()
 
@@ -289,6 +291,7 @@ class SentinelInstance():
                 toAdd.append(spam)
                 self.masterClass.done.add(spam.fullname)
         shadowbanned = []
+        domainbanned = []
         if (toAdd + editlist):
             self.logger.debug("Adding {} items to cache".format(len(toAdd+editlist)))
             
@@ -297,11 +300,16 @@ class SentinelInstance():
                 if self.user_shadowbanned(i):
                     self.removalQueue.put(i)
                     shadowbanned.append(i)
+                elif self.domainBlacklist.is_blacklisted(i):
+                    self.removalQueue.put(i)
+                    domainbanned.append(i)
                 else:
                     self.cache.add(i)
         self.masterClass.markProcessed(toAdd)
         for thing in shadowbanned:
             self.masterClass.markActioned(thing, type_of='botban')
+        for thing in domainbanned:
+            self.masterClass.markActioned(thing, type_of='domainblacklist')
 
     def user_shadowbanned(self, thing):
         if not str(thing.subreddit) in self.shadowbans:
