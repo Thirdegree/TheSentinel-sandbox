@@ -1,7 +1,7 @@
 from ..helpers import getSentinelLogger, DomainBlacklistDB
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-import urllib
+import urllib.parse
 import re
 
 
@@ -56,7 +56,7 @@ class DomainBlacklist(object):
     def domain_match(self, matcher, url):
         m = urllib.parse.urlparse(url).netloc.split('.')
         m2 = urllib.parse.urlparse(matcher).netloc.split('.')
-        for i in range(len(m)):
+        for i in range(len(zip(m, m2))):
             if m[i] == '*' or m[i] == m2[i]:
                 continue
             else:
