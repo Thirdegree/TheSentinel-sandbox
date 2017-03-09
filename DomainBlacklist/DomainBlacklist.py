@@ -55,7 +55,7 @@ class DomainBlacklist(object):
 
     def domain_match(self, matcher, url):
         m = urllib.parse.urlparse(url).netloc.split('.')
-        m2 = urllib.parse.urlparse(matcher).netloc('.')
+        m2 = urllib.parse.urlparse(matcher).netloc.split('.')
         for i in range(len(m)):
             if m[i] == '*' or m[i] == m2[i]:
                 continue
