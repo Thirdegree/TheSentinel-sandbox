@@ -1,7 +1,8 @@
 from ..helpers import getSentinelLogger, DomainBlacklistDB
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-
+import urllib
+import re
 
 
 class DomainBlacklist(object):
@@ -52,6 +53,16 @@ class DomainBlacklist(object):
 
         return urls
 
+    def domain_match(self, matcher, url):
+        m = urllib.parse.urlparse(url).netloc.split('.')
+        m2 = urllib.parse.urlparse(matcher).netloc('.')
+        for i in range(len(m)):
+            if m[i] == '*' or m[i] == m2[i]:
+                continue
+            else:
+                return False
+        return True
+
     def is_blacklisted(self, thing):
         self.get_blacklisted()
         subreddit = str(thing.subreddit)
@@ -60,7 +71,7 @@ class DomainBlacklist(object):
         if subreddit not in self.subs_intersec:
             return False
         urls = self.get_urls(thing)
-        if any(x in self.blacklisted[subreddit] for x in urls):
+        if any(self.domain_match(y, x) for y in self.blacklisted[subreddit] for x in urls):
             return True
         return False 
 
