@@ -306,7 +306,7 @@ class SentinelInstance():
     def user_shadowbanned(self, thing):
         if not str(thing.subreddit) in self.shadowbans:
             return False
-        if str(thing.author).lower() in self.shadowbans[str(thing.subreddit)]:
+        if any(re.match(m, str(thing.author), flags=re.I) for m in self.shadowbans[str(thing.subreddit)])
             return True
         return False
 
