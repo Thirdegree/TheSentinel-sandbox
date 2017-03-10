@@ -1,4 +1,4 @@
-import praw, re, time, requests, sys, threading
+import praw, re, time, requests, sys, threading, sre_constants
 from datetime import datetime
 from collections import deque
 from ..helpers.responses import *
@@ -314,8 +314,13 @@ class SentinelInstance():
     def user_shadowbanned(self, thing):
         if not str(thing.subreddit) in self.shadowbans:
             return False
-        if str(thing.author).lower() in self.shadowbans[str(thing.subreddit)]:
-            return True
+
+        for i in self.shadowbans[str(thing.subreddit)]:
+            try:
+                if re.match(i, str(thing.author)):
+                    return True
+            except sre_constants.error:
+                self.logger.warning("{} | Malformed regex in botban for subreddit - {}: {}".format(self.me, str(thing.subreddit), i))
         return False
 
     def add_user_shadowban(self, thing):
