@@ -2,7 +2,6 @@ from ..helpers import getSentinelLogger, DomainBlacklistDB
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import urllib.parse
-import re
 
 
 class DomainBlacklist(object):
