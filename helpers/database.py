@@ -1,6 +1,7 @@
 import psycopg2
 import configparser
 import os
+import re
 
 from .SentinelLogger import getSentinelLogger
 
@@ -432,10 +433,11 @@ class ShadowbanDatabase(Database):
         shadowbanned = {}
         if fetched:
             for subreddit, username in fetched:
+                user = re.compile(username, flags=re.I)
                 if subreddit in shadowbanned:
-                    shadowbanned[subreddit].add(username.lower())
+                    shadowbanned[subreddit].add(user)
                 else:
-                    shadowbanned[subreddit] = set([username.lower()])
+                    shadowbanned[subreddit] = set([user])
         return shadowbanned
 
     def add_shadowban(self, kwargs):
