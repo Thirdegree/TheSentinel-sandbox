@@ -46,7 +46,7 @@ class SentinelInstance():
 
         self.blacklisted_subs = ['pokemongo']
 
-        
+    
 
     def __str__(self):
         return self.me.name
@@ -67,6 +67,8 @@ class SentinelInstance():
             return False
         return self.masterClass.messageSubreddits(match.group(1), match.group(2))
 
+    def get_opt_ins(self):
+        return self.masterClass.db.get_subs_enabled_blacklist()
 
 
     def clearQueue(self):
@@ -298,7 +300,8 @@ class SentinelInstance():
                     self.removalQueue.put(i)
                     shadowbanned.append(i)
                 else:
-                    self.cache.add(i)
+                    if str(i.subreddit) in self.blacklist_opt_ins:
+                        self.cache.add(i)
         self.masterClass.markProcessed(toAdd)
         for thing in shadowbanned:
             self.masterClass.markActioned(thing, type_of='botban')
@@ -485,6 +488,7 @@ class SentinelInstance():
             try:
                 self.masterClass.done = set(self.masterClass.isProcessed(self.subsModded))
                 self.shadowbans = self.shadowban_db.get_shadowbanned()
+                self.blacklist_opt_ins = self.get_opt_ins()
                 #self.modMulti = self.r.subreddit('mod')
 
                 self.checkContent()
