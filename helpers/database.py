@@ -38,6 +38,13 @@ class Blacklist(Database):
             with conn.cursor() as c:
                 c.execute("SET CLIENT_ENCODING TO 'UTF8';")
 
+    def get_subs_enabled_blacklist(self):
+        with self.blacklist_conn as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT subreddit_name FROM subreddit WHERE sentinel_enabled=true")
+                fetched = c.fetchall()
+        return set([i[0] for i in fetched])
+
     def isBlacklisted(self, subreddit, media_author=None, media_channel_id=None, media_platform=None, **kwargs):
         if (not media_author) and (not media_channel_id):
             self.logger.warning('No Video Provided')
