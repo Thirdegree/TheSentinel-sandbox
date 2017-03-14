@@ -529,7 +529,7 @@ class DomainBlacklistDB(Database):
         return []
 
     def get_blacklisted(self, subs):
-        execString1 = "SELECT subreddit, domain FROM domain_blacklist, subreddit WHERE subreddit.subreddit_name=ANY(%s) AND subreddit.id = domain_blacklist.subreddit_id"
+        execString1 = "SELECT subreddit_name, domain FROM domain_blacklist, subreddit WHERE subreddit.subreddit_name=ANY(%s) AND subreddit.id = domain_blacklist.subreddit_id"
         with self.domain_conn as conn:
             with conn.cursor() as c:
                 c.execute(execString1, subs)
