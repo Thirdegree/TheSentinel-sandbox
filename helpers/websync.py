@@ -1,5 +1,7 @@
 import requests
 import time
+import configparser
+import os
 
 from .database import ModloggerDB
 from .SentinelLogger import getSentinelLogger
@@ -13,6 +15,14 @@ class Websync(object):
         self.masterClass = masterClass
         self.sentinels = [i[0] for i in self.masterClass.sentinels] #don't need the queues
         self.logger.info("Websync Thread Started")
+
+        Config = configparser.ConfigParser()
+        mydir = os.path.dirname(os.path.abspath(__file__))
+        Config.read(os.path.join(mydir, '..', "global_config.ini"))
+        secret = Config.get('Websync', 'KEY')
+        
+
+        self.header = {"WEBSYNC-SECRET-KEY": secret}
 
     def get_unprocessed(self):
         return self.db.get_unprocessed()
@@ -38,7 +48,7 @@ class Websync(object):
                             self.logger.debug("{} | New state is {} ".format('Websync', item['new_state']))
                 url = WEBSYNC_API_PATH[item['action']].format(**item)
                 self.logger.debug("{} | Calling url: {}".format('Websync', url))
-                requests.get(url)
+                requests.get(url, headers=self.header)
                 self.logger.info("{} | Processed {} action on {}".format('Websync', item['action'], item['mod'] if item['action'] == 'acceptmoderatorinvite' else item['target']))
             except KeyError:
                 pass
