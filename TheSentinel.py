@@ -376,6 +376,18 @@ class TheSentinel(object):
         for i in self.cache.get_new('marco_thesentinelbot'):
             self.cache.add_polo()
 
+    def process_item(self, item):
+        try:
+            level, thing, urls = self.needsRemoval(item)
+        except requests.exceptions.HTTPError:
+            return
+        if level == 2:
+            # Normal TSB removal due to being on the blacklist
+            self.remove(thing)
+        #if level == 1:
+            # Not on blacklist, asking Dirtbag if it should be removed
+            # self.AskDirtbag(thing, urls)
+
     def main(self):
         self.startThreads()
         self.writeSubs()
@@ -383,16 +395,8 @@ class TheSentinel(object):
         while running:
             try:
                 for item in self.get_items():
-                    try:
-                        level, thing, urls = self.needsRemoval(item)
-                    except requests.exceptions.HTTPError:
-                        continue
-                    if level == 2:
-                        # Normal TSB removal due to being on the blacklist
-                        self.remove(thing)
-                    #if level == 1:
-                        # Not on blacklist, asking Dirtbag if it should be removed
-                        # self.AskDirtbag(thing, urls)
+                    item_thread = threading.Thread(target=self.process_item, args=(item,))
+                    item_thread.start()
 
             except KeyboardInterrupt:
                 self.logger.warning(u"Keyboard Interrrupt - exiting")
