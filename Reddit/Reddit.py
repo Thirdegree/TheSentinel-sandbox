@@ -321,9 +321,10 @@ class SentinelInstance():
         for i in self.shadowbans[str(thing.subreddit)]:
             try:
                 if re.match(i, str(thing.author)):
+                    self.logger.info('{} | User {} botbanned in {}'.format(self.me, str(thing.author), str(thing.subreddit)))
                     return True
             except sre_constants.error:
-                self.logger.warning("{} | Malformed regex in botban for subreddit - {}: {}".format(self.me, str(thing.subreddit), i))
+                self.logger.warning("{} | Malformed regex in botban for subreddit - {}: {}".format("BotBan " + str(self.me), str(thing.subreddit), i))
         return False
 
     def add_user_shadowban(self, thing):
