@@ -13,9 +13,9 @@ DIRTBAG_API_PATH = {
 
 
 WEBSYNC_API_PATH = {
-    'tsbaccept':                "http://beta.layer7.solutions/admin/websync?type=tsbaccept&subreddit={subreddit}",
-    'addmoderator':             "http://beta.layer7.solutions/admin/websync?type=addmoderator&subreddit={subreddit}&moderator={target}",
-    'acceptmoderatorinvite':    "http://beta.layer7.solutions/admin/websync?type=acceptmoderatorinvite&subreddit={subreddit}&moderator={mod}",
-    'removemoderator':          "http://beta.layer7.solutions/admin/websync?type=removemoderator&subreddit={subreddit}&moderator={target}",
-    'setpermissions':           "http://beta.layer7.solutions/admin/websync?type=setpermissions&subreddit={subreddit}&moderator={target}&new_state={new_state}",
+    'tsbaccept':                "https://beta.layer7.solutions/admin/websync?type=tsbaccept&subreddit={subreddit}",
+    'addmoderator':             "https://beta.layer7.solutions/admin/websync?type=addmoderator&subreddit={subreddit}&moderator={target}",
+    'acceptmoderatorinvite':    "https://beta.layer7.solutions/admin/websync?type=acceptmoderatorinvite&subreddit={subreddit}&moderator={mod}",
+    'removemoderator':          "https://beta.layer7.solutions/admin/websync?type=removemoderator&subreddit={subreddit}&moderator={target}",
+    'setpermissions':           "https://beta.layer7.solutions/admin/websync?type=setpermissions&subreddit={subreddit}&moderator={target}&new_state={new_state}",
     }
