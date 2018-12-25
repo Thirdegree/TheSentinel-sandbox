@@ -1,2 +1,0 @@
-from .reddit import SubredditWatcher
-
