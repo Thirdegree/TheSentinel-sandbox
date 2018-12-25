@@ -1,0 +1,4 @@
+.authinfo
+logs/*
+__pycache__
+*.pyc
