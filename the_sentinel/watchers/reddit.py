@@ -4,8 +4,11 @@ Classes dedicated to watching and gathering posts and comments from reddit
 from typing import Union, Callable, Any, Optional, List
 import asyncio
 import praw
-
+# types
+# pylint: disable=invalid-name
 StreamTarget = Callable[..., praw.models.ListingGenerator]
+RedditQueue = 'asyncio.Queue[praw.models.reddit.base.RedditBase]'
+# pylint: enable=invalid-name
 
 class RedditWatcher:
     """
@@ -13,15 +16,17 @@ class RedditWatcher:
     """
     def __init__(self,
                  reddit: praw.Reddit,
-                 watchers: Optional[List[SubredditWatcher]]):
+                 watchers: Optional[List['SubredditWatcher']] = None):
         self.reddit = reddit
+        self._outqueue: RedditQueue
+        self._outqueue = asyncio.Queue()
 
         if watchers is None:
             watchers = []
         self.watchers: List[SubredditWatcher]
         self.watchers = watchers
 
-    async def watch(self, pause_after: int = -1, **kwargs: Any):
+    def watch(self, pause_after: int = -1, **kwargs: Any):
         """
         Creates tasks for all watcher instances, passing down stream arguments
         """
@@ -30,15 +35,15 @@ class RedditWatcher:
                 watcher.watch(pause_after=pause_after, **kwargs)
                 )
 
-    async def add_watcher(self, subreddit: Union[praw.models.Subreddit, str]):
+    def add_watcher(self, subreddit: Union[praw.models.Subreddit, str]):
         """
         Adds a watcher
         """
-        watcher = SubredditWatcher(self.reddit, subreddit)
+        watcher = SubredditWatcher(self.reddit, subreddit, self._outqueue)
         if watcher in self.watchers:
             raise RuntimeError(
                 "You may not have multiple watchers for a single subreddit")
-        self.watchers.append()
+        self.watchers.append(watcher)
 
     def kill(self):
         """
@@ -54,10 +59,14 @@ class SubredditWatcher:
     """
     def __init__(self,
                  reddit: praw.Reddit,
-                 subreddit: Union[praw.models.Subreddit, str]):
+                 subreddit: Union[praw.models.Subreddit, str],
+                 queue: Optional[RedditQueue] = None):
         self.reddit = reddit
-        self._outqueue: asyncio.Queue[praw.models.reddit.base.RedditBase]
-        self._outqueue = asyncio.Queue()
+
+        if queue is None:
+            queue = asyncio.Queue()
+        self._outqueue = queue
+
         if isinstance(subreddit, str):
             self.subreddit = self.reddit.subreddit(subreddit)
         else:
