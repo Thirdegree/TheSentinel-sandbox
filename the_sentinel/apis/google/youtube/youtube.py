@@ -1,8 +1,13 @@
 """
 Base module for youtube related things
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast, NamedTuple
 import requests
+
+class Kind(NamedTuple):
+    key: str
+    kind: 'Youtube'
+
 
 
 class Youtube(requests.Session):
@@ -15,13 +20,18 @@ class Youtube(requests.Session):
     AUTH: Dict[str, str]
     AUTH = {}
 
-    def __init__(self, *args, id=None, key=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.id: Optional[str] = id # pylint: disable=invalid-name
+    def __init__(self, *args,
+                 id: str = '',
+                 key: Optional[str] = None,
+                 resp: Optional[requests.Response] = None,
+                 **kwargs: Any):
+        #pylint: disable=invalid-name
+        super().__init__()
+        self.id = id # pylint: disable=invalid-name
         if key:
             self.AUTH['key'] = key
         self._json: Optional[Any] = None
-        self._resp: Optional[requests.Response] = None
+        self._resp: Optional[requests.Response] = resp
 
     @property
     def resp(self) -> requests.Response:
@@ -38,15 +48,31 @@ class Youtube(requests.Session):
         """
         Takes advantage of self.resp for lazy json repr
         """
-        return self.resp.json()
+        # these apis ALWAYS return a list even if it's explicitly a single
+        # thing
+        if self._json is None:
+            self._json = next(
+                filter(
+                    lambda x: self._getid(x) == self.id,
+                    self.resp.json()['items']
+                    )
+                )
+        return self._json
+
+    @staticmethod
+    def _getid(item: Dict[str, Any]) -> str:
+        item_id = item['id']
+        if isinstance(item_id, dict):
+            return cast(str, item_id[KIND_MAPPING[item_id['kind']].key])
+        return cast(str, item_id)
 
     def request(self, method, url='', params=None, **kwargs):
         # pylint: disable=arguments-differ
         endpoint = '/'.join(self.REST_BASE)
-        if self.ENDPOINT_BASE:
-            endpoint += '/' + self.ENDPOINT_BASE
         if url:
             endpoint += '/' + url
+        elif self.ENDPOINT_BASE:
+            endpoint += '/' + self.ENDPOINT_BASE
 
         # don't care about the original url at all,
         # don't even want to supply it
@@ -69,7 +95,16 @@ class Youtube(requests.Session):
         params.update({
             'q': query
             })
-        return self.get(url=endpoint, params=params, **kwargs)
+        resp = self.get(url=endpoint, params=params, **kwargs)
+        ret = []
+        for item in resp.json()['items']:
+            kind = KIND_MAPPING[item['id']['kind']].kind
+            ret.append(kind(id=self._getid(item), resp=resp))
+        return ret
+
+    @property
+    def title(self):
+        return self.json['snippet']['title']
 
     # getting rid of the requirement to supply the url
     def get(self, url='', **kwargs):
@@ -83,3 +118,14 @@ class Youtube(requests.Session):
 
     def delete(self, url='', **kwargs):
         return super().delete(url, **kwargs)
+
+
+# these need to be at the bottom or neither can import the other
+from . import video
+from . import channel
+from . import playlist
+KIND_MAPPING = {
+    'youtube#video': Kind(key='videoId', kind=video.Video),
+    'youtube#channel': Kind(key='channelId', kind=channel.Channel),
+    'youtube#playlist': Kind(key='playlistId', kind=playlist.Playlist),
+    }

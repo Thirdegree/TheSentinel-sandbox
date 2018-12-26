@@ -1,12 +1,10 @@
 """
 Module for youtube playlists
 """
-from .youtube import Youtube
+from . import youtube
 
-class Playlist(Youtube):
+class Playlist(youtube.Youtube):
     """
     Representing things rootied at /playlists endpoint
     """
     ENDPOINT_BASE = 'playlists'
-
-
