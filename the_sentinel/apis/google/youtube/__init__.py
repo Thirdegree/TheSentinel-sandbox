@@ -1,1 +1,5 @@
-from .youtube import Youtube, Channel
+"""
+Youtube related apis
+"""
+from .youtube import Youtube
+from .channel import Channel

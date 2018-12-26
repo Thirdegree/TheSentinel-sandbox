@@ -1,32 +1,47 @@
-from typing import Dict, Any
+"""
+Base module for youtube related things
+"""
+from typing import Dict, Any, Optional
 import requests
 
 
 class Youtube(requests.Session):
-    API_BASE='https://www.googleapis.com'
-    REST_BASE=['youtube', 'v3']
-    ENDPOINT_BASE=''
+    """
+    Base class, sets up authentication and url munging
+    """
+    API_BASE = 'https://www.googleapis.com'
+    REST_BASE = ['youtube', 'v3']
+    ENDPOINT_BASE = ''
+    AUTH: Dict[str, str]
     AUTH = {}
 
-    def __init__(self, key=None, *args, **kwargs):
+    def __init__(self, *args, key=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.id: Optional[str] = None # pylint: disable=invalid-name
         if key:
             self.AUTH['key'] = key
-        self._json: Optional[Dict[Any, Any]] = None
+        self._json: Optional[Any] = None
         self._resp: Optional[requests.Response] = None
 
     @property
     def resp(self) -> requests.Response:
+        """
+        Lazy getter for youtube Response for given object
+        """
         if self._resp is None:
             self._resp = self.get(params={'id': self.id})
             self._resp.raise_for_status()
         return self._resp
 
     @property
-    def json(self) -> Dict[Any, Any]:
+    def json(self) -> Any:
+        """
+        Takes advantage of self.resp for lazy json repr
+        """
         return self.resp.json()
 
     def request(self, method, url='', params=None, **kwargs):
+        # pylint: disable=arguments-differ
         endpoint = '/'.join(self.REST_BASE)
         if self.ENDPOINT_BASE:
             endpoint += '/' + self.ENDPOINT_BASE
@@ -44,39 +59,27 @@ class Youtube(requests.Session):
             })
         return super().request(method, url, params=params, **kwargs)
 
-    def search(self, query, *args, **kwargs):
+    def search(self, query, params=None, **kwargs):
+        """
+        Searches youtube for ANY kinds that match these values
+        """
         endpoint = 'search'
-        params = {
-                'q': query
-                }
-        return self.get(url=endpoint, params=params)
+        if params is None:
+            params = {}
+        params.update({
+            'q': query
+            })
+        return self.get(url=endpoint, params=params, **kwargs)
 
     # getting rid of the requirement to supply the url
     def get(self, url='', **kwargs):
         return super().get(url, **kwargs)
-    def put(self, url='', **kwargs):
-        return super().put(url, **kwargs)
-    def post(self, url='', **kwargs):
-        return super().post(url, **kwargs)
+
+    def put(self, url='', data=None, **kwargs):
+        return super().put(url, data=data, **kwargs)
+
+    def post(self, url='', data=None, json=None, **kwargs):
+        return super().post(url, data=data, json=json, **kwargs)
+
     def delete(self, url='', **kwargs):
         return super().delete(url, **kwargs)
-
-
-
-class Channel(Youtube):
-    ENDPOINT_BASE='channels'
-    def __init__(self, channel_id, key=None, *args, **kwargs):
-        self.id = channel_id
-        super().__init__(key=key, *args, **kwargs)
-
-    def get(self, params=None, **kwargs):
-        default_params = {
-            'part': 'snippet',
-            }
-
-        if params is None:
-            params = {}
-        default_params.update(params)
-        return super().get(params=default_params, **kwargs)
-
-
