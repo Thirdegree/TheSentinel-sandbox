@@ -7,7 +7,6 @@ import praw
 # types
 # pylint: disable=invalid-name
 StreamTarget = Callable[..., praw.models.ListingGenerator]
-RedditQueue = 'asyncio.Queue[praw.models.reddit.base.RedditBase]'
 # pylint: enable=invalid-name
 
 class RedditWatcher:
@@ -18,7 +17,7 @@ class RedditWatcher:
                  reddit: praw.Reddit,
                  watchers: Optional[List['SubredditWatcher']] = None):
         self.reddit = reddit
-        self._outqueue: RedditQueue
+        self._outqueue: asyncio.Queue[praw.models.reddit.base.RedditBase]
         self._outqueue = asyncio.Queue()
 
         if watchers is None:
@@ -60,7 +59,9 @@ class SubredditWatcher:
     def __init__(self,
                  reddit: praw.Reddit,
                  subreddit: Union[praw.models.Subreddit, str],
-                 queue: Optional[RedditQueue] = None):
+                 queue: Optional[
+                     'asyncio.Queue[praw.models.reddit.base.RedditBase]'
+                     ] = None):
         self.reddit = reddit
 
         if queue is None:
