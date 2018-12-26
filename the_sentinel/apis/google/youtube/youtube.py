@@ -1,7 +1,7 @@
 """
 Base module for youtube related things
 """
-from typing import Dict, Any, Optional, cast, NamedTuple
+from typing import Dict, Any, Optional, cast, NamedTuple, Type, Tuple
 import requests
 
 class Kind(NamedTuple):
@@ -19,13 +19,36 @@ class Youtube(requests.Session):
     ENDPOINT_BASE = ''
     AUTH: Dict[str, str]
     AUTH = {}
+    _CACHE: Dict[Tuple[str, Type['Youtube']], 'Youtube'] = {}
+
+    def __new__(cls, id: str = '', *args, **kwargs):
+        """
+        This allows us to cache multiple requests for the same object
+        """
+        if (id, cls) not in cls._CACHE:
+            print("New thing {}".format(id))
+            instance = super(Youtube, cls).__new__(cls)
+            instance.__init__(id=id, cached=False, *args, **kwargs)
+            cls._CACHE[(id, cls)] = instance
+        else:
+            print("old thing {}".format(id))
+
+        return cls._CACHE[(id, cls)]
 
     def __init__(self, *args,
                  id: str = '',
                  key: Optional[str] = None,
                  resp: Optional[requests.Response] = None,
+                 cached: bool = True,
                  **kwargs: Any):
+        if cached:
+            # we only want to do all this if this is the FIRST time this thing
+            # has been created. We set cached to false in __new__ when that is
+            # the case. ALL other cases of instanciation should return a cached
+            # value
+            return
         #pylint: disable=invalid-name
+        print("INIT CALLED")
         super().__init__()
         self.id = id # pylint: disable=invalid-name
         if key:
@@ -118,6 +141,14 @@ class Youtube(requests.Session):
 
     def delete(self, url='', **kwargs):
         return super().delete(url, **kwargs)
+
+    def refresh(self):
+        """
+        Clears out all caching that has been done on a given object
+        """
+        self._resp = None
+        self._json = None
+        self._CACHE.pop((self.id, type(self)))
 
 
 # these need to be at the bottom or neither can import the other
