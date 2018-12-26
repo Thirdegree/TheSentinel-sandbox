@@ -15,9 +15,9 @@ class Youtube(requests.Session):
     AUTH: Dict[str, str]
     AUTH = {}
 
-    def __init__(self, *args, key=None, **kwargs):
+    def __init__(self, *args, id=None, key=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.id: Optional[str] = None # pylint: disable=invalid-name
+        self.id: Optional[str] = id # pylint: disable=invalid-name
         if key:
             self.AUTH['key'] = key
         self._json: Optional[Any] = None
