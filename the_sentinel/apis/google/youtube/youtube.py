@@ -2,6 +2,7 @@
 Base module for youtube related things
 """
 from typing import Dict, Any, Optional, cast, NamedTuple, Type, Tuple
+from lru import LRU
 import requests
 
 class Youtube(requests.Session):
@@ -13,7 +14,7 @@ class Youtube(requests.Session):
     ENDPOINT_BASE = ''
     AUTH: Dict[str, str]
     AUTH = {}
-    _CACHE: Dict[Tuple[str, Type['Youtube']], 'Youtube'] = {}
+    _CACHE: Dict[Tuple[str, Type['Youtube']], 'Youtube'] = LRU(128)
 
     def __new__(cls, id: str = '', **kwargs):
         """

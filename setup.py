@@ -43,7 +43,8 @@ setup(
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),  # Required
     install_requires=[
             'praw',
-            'requests'
+            'requests',
+            'lru-dict'
             ],  # Optional
 
     # extras_require={  # Optional
