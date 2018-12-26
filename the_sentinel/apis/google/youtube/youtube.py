@@ -18,7 +18,7 @@ class Youtube(requests.Session):
     @property
     def resp(self) -> requests.Response:
         if self._resp is None:
-            self._resp = self.get()
+            self._resp = self.get(params={'id': self.id})
             self._resp.raise_for_status()
         return self._resp
 
@@ -30,15 +30,26 @@ class Youtube(requests.Session):
         endpoint = '/'.join(self.REST_BASE)
         if self.ENDPOINT_BASE:
             endpoint += '/' + self.ENDPOINT_BASE
+        if url:
+            endpoint += '/' + url
+
         # don't care about the original url at all,
         # don't even want to supply it
         url = '/'.join([self.API_BASE, endpoint])
         if params is None:
             params = {}
         params.update({
-            'part': 'snippet'
+            'part': 'snippet',
+            'key': self.AUTH.get('key', '')
             })
         return super().request(method, url, params=params, **kwargs)
+
+    def search(self, query, *args, **kwargs):
+        endpoint = 'search'
+        params = {
+                'q': query
+                }
+        return self.get(url=endpoint, params=params)
 
     # getting rid of the requirement to supply the url
     def get(self, url='', **kwargs):
@@ -50,6 +61,8 @@ class Youtube(requests.Session):
     def delete(self, url='', **kwargs):
         return super().delete(url, **kwargs)
 
+
+
 class Channel(Youtube):
     ENDPOINT_BASE='channels'
     def __init__(self, channel_id, key=None, *args, **kwargs):
@@ -59,9 +72,6 @@ class Channel(Youtube):
     def get(self, params=None, **kwargs):
         default_params = {
             'part': 'snippet',
-            'id': self.id,
-            # 'fields': 'items(id,snippet/title)',
-            'key': self.AUTH['key']
             }
 
         if params is None:
