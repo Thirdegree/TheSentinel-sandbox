@@ -15,9 +15,11 @@ class Video(youtube.Youtube):
 
     @property
     def channel(self):
+        """
+        Gets a channel object for the video
+        """
         if self._channel is None:
-            self._channel= channel.Channel(
+            self._channel = channel.Channel(
                                 id=self.json['snippet']['channelId']
                                 )
         return self._channel
-

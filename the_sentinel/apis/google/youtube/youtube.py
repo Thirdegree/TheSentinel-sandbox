@@ -4,12 +4,6 @@ Base module for youtube related things
 from typing import Dict, Any, Optional, cast, NamedTuple, Type, Tuple
 import requests
 
-class Kind(NamedTuple):
-    key: str
-    kind: 'Youtube'
-
-
-
 class Youtube(requests.Session):
     """
     Base class, sets up authentication and url munging
@@ -21,26 +15,25 @@ class Youtube(requests.Session):
     AUTH = {}
     _CACHE: Dict[Tuple[str, Type['Youtube']], 'Youtube'] = {}
 
-    def __new__(cls, id: str = '', *args, **kwargs):
+    def __new__(cls, id: str = '', **kwargs):
         """
         This allows us to cache multiple requests for the same object
         """
         if (id, cls) not in cls._CACHE:
             print("New thing {}".format(id))
             instance = super(Youtube, cls).__new__(cls)
-            instance.__init__(id=id, cached=False, *args, **kwargs)
+            instance.__init__(id=id, cached=False, **kwargs)
             cls._CACHE[(id, cls)] = instance
         else:
             print("old thing {}".format(id))
 
         return cls._CACHE[(id, cls)]
 
-    def __init__(self, *args,
-                 id: str = '',
+    def __init__(self,
+                 id: str = '', # pylint: disable=invalid-name
                  key: Optional[str] = None,
                  resp: Optional[requests.Response] = None,
-                 cached: bool = True,
-                 **kwargs: Any):
+                 cached: bool = True):
         if cached:
             # we only want to do all this if this is the FIRST time this thing
             # has been created. We set cached to false in __new__ when that is
@@ -127,6 +120,10 @@ class Youtube(requests.Session):
 
     @property
     def title(self):
+        """
+        Gets a title from an object.
+        If used on base Youtube objects, will raise a requests exception
+        """
         return self.json['snippet']['title']
 
     # getting rid of the requirement to supply the url
@@ -152,9 +149,19 @@ class Youtube(requests.Session):
 
 
 # these need to be at the bottom or neither can import the other
+# pylint: disable=wrong-import-position
 from . import video
 from . import channel
 from . import playlist
+# pylint: enable=wrong-import-position
+
+class Kind(NamedTuple):
+    """
+    Convienence type for dealing with getting id from things
+    """
+    key: str
+    kind: 'Youtube'
+
 KIND_MAPPING = {
     'youtube#video': Kind(key='videoId', kind=video.Video),
     'youtube#channel': Kind(key='channelId', kind=channel.Channel),

@@ -4,8 +4,6 @@ Module for youtube channels
 from typing import Optional, Dict, Any
 from . import youtube
 
-import requests
-
 class Channel(youtube.Youtube):
     """
     Representing things rootied at /channels endpoint
