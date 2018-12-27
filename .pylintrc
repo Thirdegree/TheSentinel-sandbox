@@ -139,9 +139,11 @@ disable=print-statement,
         deprecated-sys-function,
         exception-escape,
         comprehension-escape,
+        # below are the ones that didn't come by default
         unsubscriptable-object,
         redefined-builtin,
-        cyclic-import
+        cyclic-import,
+        duplicate-code
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

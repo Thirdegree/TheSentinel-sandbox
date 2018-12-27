@@ -1,7 +1,8 @@
 """
 Base module for youtube related things
 """
-from typing import Dict, Any, Optional, cast, NamedTuple, Type, Tuple
+from typing import Dict, Any, Optional, cast, NamedTuple, Type, Tuple, Pattern
+import re
 import requests
 from lru import LRU # pylint: disable=no-name-in-module
 
@@ -15,7 +16,7 @@ class Youtube(requests.Session):
     REST_BASE = ['youtube', 'v3']
     ENDPOINT_BASE = ''
 
-    URL_REGEX = r''
+    URL_REGEX: Pattern = re.compile(r'')
 
     AUTH: Dict[str, str]
     AUTH = {}

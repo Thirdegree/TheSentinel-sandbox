@@ -2,6 +2,7 @@
 Module for youtube playlists
 """
 from typing import Optional, Dict, Any
+import re
 from . import youtube
 
 class Playlist(youtube.Youtube):
@@ -9,7 +10,9 @@ class Playlist(youtube.Youtube):
     Representing things rootied at /playlists endpoint
     """
     ENDPOINT_BASE = 'playlists'
-    URL_REGEX = r'(?<!watch).*?list=((?!videoseries).*?)(?:#|\/|\?|\&|$)'
+    URL_REGEX = re.compile(
+        r'(?<!watch).*?list=((?!videoseries).*?)(?:#|\/|\?|\&|$)'
+        )
 
     def videos(self,
                query: Optional[str] = None,

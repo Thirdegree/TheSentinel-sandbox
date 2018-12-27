@@ -2,6 +2,7 @@
 Module for youtube channels
 """
 from typing import Optional, Dict, Any
+import re
 from . import youtube
 
 class Channel(youtube.Youtube):
@@ -9,7 +10,7 @@ class Channel(youtube.Youtube):
     Representing things rootied at /channels endpoint
     """
     ENDPOINT_BASE = 'channels'
-    URL_REGEX = r'(?i)channel\/(.*?)(?:\/|\?|$)'
+    URL_REGEX = re.compile(r'(?i)channel\/(.*?)(?:\/|\?|$)')
 
     def videos(self,
                query: Optional[str] = None,
