@@ -95,7 +95,7 @@ class RestBase(requests.Session):
         """
         self._resp = None
         self._json = None
-        self._CACHE.pop((self.id, type(self)))
+        del self._CACHE[(self.id, type(self))]
 
     @classmethod
     def match(cls, url: str) -> Optional[Match]:
