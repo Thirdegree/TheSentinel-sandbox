@@ -104,7 +104,8 @@ class Youtube(requests.Session):
             })
         return super().request(method, url, params=params, **kwargs)
 
-    def search(self, query, params=None, **kwargs):
+    def search(self, query, params=None,
+               limit: Optional[int] = None, **kwargs):
         """
         Searches youtube for ANY kinds that match these values
         """
@@ -112,7 +113,8 @@ class Youtube(requests.Session):
         if params is None:
             params = {}
         params.update({
-            'q': query
+            'q': query,
+            'maxResults': params.get('maxResults', limit)
             })
         resp = self.get(url=endpoint, params=params, **kwargs)
         ret = []
