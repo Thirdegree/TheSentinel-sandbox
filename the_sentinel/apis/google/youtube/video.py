@@ -13,9 +13,9 @@ class Video(youtube.Youtube):
     # special charecters found
     # https://secure.n-able.com/webhelp/NC_9-1-0_SO_en/Content/SA_docs/API_Level_Integration/API_Integration_URLEncoding.html
     URL_REGEX = re.compile(
-                    (r'(?:youtu\.be\/|watch\?v=|\/embed\/)(?P<id>.*?)'
-                     r'(?:[$&+,/:;=?@]|$)')
-                    )
+        (r'(?:youtu\.be\/|watch\?v=|\/embed\/)(?P<id>.*?)'
+         r'(?:[$&+,/:;=?@]|$)')
+        )
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._channel = None

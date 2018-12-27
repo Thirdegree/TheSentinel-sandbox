@@ -3,13 +3,17 @@ Module for gathering all the various api endpoints I need to talk to to find
 spam
 """
 from typing import List, Pattern, Dict, Tuple, Type, cast, Optional, Any, Match
-from lru import LRU # pylint: disable=no-name-in-module
 import re
 import requests
+from lru import LRU # pylint: disable=no-name-in-module
 
 ItemCache = Dict[Tuple[str, Type['RestBase']], 'RestBase']
 
 class RestBase(requests.Session):
+    """
+    Base for all apis, allows for consistant api access from the rest of
+    the_sentinel
+    """
     API_BASE = ''
     REST_BASE: List[str] = []
     ENDPOINT_BASE = ''
@@ -53,16 +57,27 @@ class RestBase(requests.Session):
 
     @property
     def resp(self) -> requests.Response:
+        """
+        Allows for lazy getting of requests.Repsonse objects
+        Must be overridden
+        """
         raise NotImplementedError
 
     @property
     def json(self) -> Any:
+        """
+        Allows for lazy getting of json representation
+        should probably be overridden, but doesn't have to be
+        """
         if self._json is None:
             self._json = self.resp.json()
         return self._json
 
     def format_url(self, url):
-
+        """
+        Allows for consistant url formatting methodology without having to do
+        case-by-case handling
+        """
         endpoint = '/'.join(self.REST_BASE)
         if url:
             endpoint += '/' + url
@@ -84,14 +99,22 @@ class RestBase(requests.Session):
 
     @classmethod
     def match(cls, url: str) -> Optional[Match]:
+        """
+        Gets a match for the item's regex (search so the regex doesn't have to
+        be as exact
+        """
         return cls.URL_REGEX.search(url)
 
     @classmethod
     def from_url(cls, url: str) -> Optional['RestBase']:
-        m = cls.match(url)
-        if not m:
+        """
+        returns an object of the class if there is match found in that url
+        None otherwise
+        """
+        match = cls.match(url)
+        if not match:
             return None
-        return cls(id=m.group('id'))
+        return cls(id=match.group('id'))
 
     def __repr__(self):
         if self.id:
@@ -109,5 +132,3 @@ class RestBase(requests.Session):
 
     def __ne__(self, other):
         return not self == other
-
-

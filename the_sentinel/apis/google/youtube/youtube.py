@@ -1,9 +1,7 @@
 """
 Base module for youtube related things
 """
-from typing import Dict, Any, Optional, cast, NamedTuple, \
-                   Type, Tuple, Pattern, Callable
-import re
+from typing import Dict, Any, Optional, cast, Type, Tuple, Callable
 import requests
 from ... import RestBase
 
@@ -50,7 +48,7 @@ class Youtube(RestBase):
         try:
             # item is from a search result
             return KIND_MAPPING[item['kind']](item)[0]
-        except (KeyError, TypeError) as e:
+        except (KeyError, TypeError):
             item_id = item['id']
             return cast(str, item_id)
 
@@ -81,12 +79,12 @@ class Youtube(RestBase):
         ret = []
         for item in resp.json()['items']:
             try:
-                id, kind = KIND_MAPPING[item['kind']](item)
+                item_id, kind = KIND_MAPPING[item['kind']](item)
             except KeyError:
                 from pprint import pprint
                 pprint(item)
                 raise
-            item = kind(id=id, resp=resp)
+            item = kind(id=item_id, resp=resp)
             ret.append(item)
         return ret
 
@@ -112,11 +110,12 @@ KIND_MAPPING = {
     # functions should expect resp.json()['items'][i] and return
     # (id, Kind)
     'youtube#video': lambda item: (item['id']['videoId'],
-                                        video.Video),
+                                   video.Video),
     'youtube#channel': lambda item: (item['id']['channelId'],
-                                           channel.Channel),
+                                     channel.Channel),
     'youtube#playlist': lambda item: (item['id']['playlistId'],
                                       playlist.Playlist),
+    # pylint: disable=unnecessary-lambda
     'youtube#searchResult': lambda item:\
                                 KIND_MAPPING[item['id']['kind']](item),
     'youtube#playlistItem': lambda item: (item['snippet']\
