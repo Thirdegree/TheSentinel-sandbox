@@ -6,3 +6,4 @@ from .youtube import Youtube
 from .channel import Channel
 from .video import Video
 from .playlist import Playlist
+from .user import User

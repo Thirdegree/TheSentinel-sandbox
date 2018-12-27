@@ -9,6 +9,8 @@ class Video(youtube.Youtube):
     Representing things rootied at /videos endpoint
     """
     ENDPOINT_BASE = 'videos'
+    URL_REGEX = (r'(?:(?:watch\?.*?v=(.*?)(?:#.*)?)|youtu\.be\/(.*?)(?:\?.*)?|'
+                 r'embed\/(.*?)(?:\?.*))(?:#|\&|\/|$)')
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._channel = None

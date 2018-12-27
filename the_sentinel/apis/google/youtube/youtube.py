@@ -1,12 +1,11 @@
 """
 Base module for youtube related things
 """
-from typing import Dict, Any, Optional, cast, NamedTuple, \
-                   Type, Tuple, Hashable
-from lru import LRU
+from typing import Dict, Any, Optional, cast, NamedTuple, Type, Tuple
 import requests
+from lru import LRU # pylint: disable=no-name-in-module
 
-ITEM_CACHE = Dict[Tuple[str, Type['Youtube']], 'Youtube']
+ItemCache = Dict[Tuple[str, Type['Youtube']], 'Youtube']
 
 class Youtube(requests.Session):
     """
@@ -15,9 +14,13 @@ class Youtube(requests.Session):
     API_BASE = 'https://www.googleapis.com'
     REST_BASE = ['youtube', 'v3']
     ENDPOINT_BASE = ''
+
+    URL_REGEX = r''
+
     AUTH: Dict[str, str]
     AUTH = {}
-    _CACHE: ITEM_CACHE = cast(ITEM_CACHE, LRU(128))
+
+    _CACHE: ItemCache = cast(ItemCache, LRU(128))
 
     def __new__(cls, id: str = '', **kwargs):
         """
@@ -154,6 +157,15 @@ class Youtube(requests.Session):
 
     def __str__(self):
         return repr(self)
+
+    def __hash__(self):
+        return hash((self.__class__, self.id))
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+    def __ne__(self, other):
+        return not self == other
 
 
 # these need to be at the bottom or neither can import the other

@@ -8,3 +8,4 @@ class Playlist(youtube.Youtube):
     Representing things rootied at /playlists endpoint
     """
     ENDPOINT_BASE = 'playlists'
+    URL_REGEX = r'(?<!watch).*?list=((?!videoseries).*?)(?:#|\/|\?|\&|$)'
