@@ -10,7 +10,7 @@ class Channel(youtube.Youtube):
     Representing things rootied at /channels endpoint
     """
     ENDPOINT_BASE = 'channels'
-    URL_REGEX = re.compile(r'(?i)channel\/(.*?)(?:\/|\?|$)')
+    URL_REGEX = re.compile(r'(?i)channel\/(?P<id>.*?)(?:\/|\?|$)')
 
     def videos(self,
                query: Optional[str] = None,

@@ -11,7 +11,7 @@ class Playlist(youtube.Youtube):
     """
     ENDPOINT_BASE = 'playlists'
     URL_REGEX = re.compile(
-        r'(?<!watch).*?list=((?!videoseries).*?)(?:#|\/|\?|\&|$)'
+        r'(?<!watch).*?list=(?P<id>(?!videoseries).*?)(?:#|\/|\?|\&|$)'
         )
 
     def videos(self,
@@ -27,4 +27,4 @@ class Playlist(youtube.Youtube):
             'type': 'video',
             'playlistId': self.id,
             })
-        return self.search(query=query, params=params, **kwargs)
+        return self.search(endpoint='playlistItems', query=query, params=params, **kwargs)

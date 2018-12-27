@@ -11,11 +11,11 @@ class User(Channel):
     """
     Class for youtube Users
     """
-    URL_REGEX = re.compile(r'user\/(.*)(?:\?|$|\/)')
+    URL_REGEX = re.compile(r'user\/(?P<id>.*)(?:\?|$|\/)')
     @property
     def resp(self) -> requests.Response:
         if self._resp is None:
-            self._resp = self.get(params={'forUsername': self.id})
+            self._resp = self.get('', params={'forUsername': self.id})
             self._resp.raise_for_status()
         return self._resp
 

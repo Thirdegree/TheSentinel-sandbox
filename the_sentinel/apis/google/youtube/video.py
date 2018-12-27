@@ -11,8 +11,8 @@ class Video(youtube.Youtube):
     """
     ENDPOINT_BASE = 'videos'
     URL_REGEX = re.compile(
-        (r'(?:(?:watch\?.*?v=(.*?)(?:#.*)?)|youtu\.be\/(.*?)(?:\?.*)?|'
-         r'embed\/(.*?)(?:\?.*))(?:#|\&|\/|$)'))
+                    r'(?:youtu\.be\/|watch\?v=|\/embed\/)(?P<id>.*?)(?:\W|$)'
+                    )
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._channel = None

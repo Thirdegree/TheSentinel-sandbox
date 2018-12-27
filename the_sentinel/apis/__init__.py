@@ -2,7 +2,7 @@
 Module for gathering all the various api endpoints I need to talk to to find
 spam
 """
-from typing import List, Pattern, Dict, Tuple, Type, cast, Optional, Any
+from typing import List, Pattern, Dict, Tuple, Type, cast, Optional, Any, Match
 from lru import LRU # pylint: disable=no-name-in-module
 import re
 import requests
@@ -82,6 +82,16 @@ class RestBase(requests.Session):
         self._json = None
         self._CACHE.pop((self.id, type(self)))
 
+    @classmethod
+    def match(cls, url: str) -> Match:
+        return cls.URL_REGEX.search(url)
+
+    @classmethod
+    def from_url(cls, url: str) -> Optional['RestBase']:
+        m = cls.match(url)
+        if m:
+            return cls(id=m.group('id'))
+
     def __repr__(self):
         if self.id:
             return f"<{self.__class__.__name__}:{self.id}>"
@@ -98,3 +108,5 @@ class RestBase(requests.Session):
 
     def __ne__(self, other):
         return not self == other
+
+

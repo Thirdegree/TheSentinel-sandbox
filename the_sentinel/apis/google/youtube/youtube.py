@@ -1,7 +1,8 @@
 """
 Base module for youtube related things
 """
-from typing import Dict, Any, Optional, cast, NamedTuple, Type, Tuple, Pattern
+from typing import Dict, Any, Optional, cast, NamedTuple, \
+                   Type, Tuple, Pattern, Callable
 import re
 import requests
 from ... import RestBase
@@ -14,7 +15,6 @@ class Youtube(RestBase):
     API_BASE = 'https://www.googleapis.com'
     REST_BASE = ['youtube', 'v3']
 
-    URL_REGEX: Pattern = re.compile(r'')
 
     AUTH: Dict[str, str]
     AUTH = {}
@@ -47,10 +47,12 @@ class Youtube(RestBase):
 
     @staticmethod
     def _getid(item: Dict[str, Any]) -> str:
-        item_id = item['id']
-        if isinstance(item_id, dict):
-            return cast(str, item_id[KIND_MAPPING[item_id['kind']].key])
-        return cast(str, item_id)
+        try:
+            # item is from a search result
+            return KIND_MAPPING[item['kind']](item)[0]
+        except (KeyError, TypeError) as e:
+            item_id = item['id']
+            return cast(str, item_id)
 
     def request(self, method, url, params=None, **kwargs):
         # pylint: disable=arguments-differ
@@ -63,12 +65,12 @@ class Youtube(RestBase):
             })
         return super().request(method, url, params=params, **kwargs)
 
-    def search(self, query, params=None,
+    def search(self, endpoint='', query='', params=None,
                limit: Optional[int] = None, **kwargs):
         """
         Searches youtube for ANY kinds that match these values
         """
-        endpoint = 'search'
+        endpoint = endpoint or 'search'
         if params is None:
             params = {}
         params.update({
@@ -78,8 +80,14 @@ class Youtube(RestBase):
         resp = self.get(url=endpoint, params=params, **kwargs)
         ret = []
         for item in resp.json()['items']:
-            kind = KIND_MAPPING[item['id']['kind']].kind
-            ret.append(kind(id=self._getid(item), resp=resp))
+            try:
+                id, kind = KIND_MAPPING[item['kind']](item)
+            except KeyError:
+                from pprint import pprint
+                pprint(item)
+                raise
+            item = kind(id=id, resp=resp)
+            ret.append(item)
         return ret
 
     @property
@@ -98,15 +106,21 @@ from . import channel
 from . import playlist
 # pylint: enable=wrong-import-position
 
-class Kind(NamedTuple):
-    """
-    Convienence type for dealing with getting id from things
-    """
-    key: str
-    kind: Type['Youtube']
-
+KIND_MAPPING: Dict[str, Callable[[Dict[str, Any]], Tuple[str, Type[Youtube]]]]
 KIND_MAPPING = {
-    'youtube#video': Kind(key='videoId', kind=video.Video),
-    'youtube#channel': Kind(key='channelId', kind=channel.Channel),
-    'youtube#playlist': Kind(key='playlistId', kind=playlist.Playlist),
+    # ALL KINDS HERE MUST BE THE resp.json()['items'][i]['kind']
+    # functions should expect resp.json()['items'][i] and return
+    # (id, Kind)
+    'youtube#video': lambda item: (item['id']['videoId'],
+                                        video.Video),
+    'youtube#channel': lambda item: (item['id']['channelId'],
+                                           channel.Channel),
+    'youtube#playlist': lambda item: (item['id']['playlistId'],
+                                      playlist.Playlist),
+    'youtube#searchResult': lambda item:\
+                                KIND_MAPPING[item['id']['kind']](item),
+    'youtube#playlistItem': lambda item: (item['snippet']\
+                                              ['resourceId']['videoId'],
+                                          video.Video),
+
     }
