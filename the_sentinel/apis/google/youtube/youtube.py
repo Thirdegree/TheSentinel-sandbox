@@ -1,9 +1,12 @@
 """
 Base module for youtube related things
 """
-from typing import Dict, Any, Optional, cast, NamedTuple, Type, Tuple
+from typing import Dict, Any, Optional, cast, NamedTuple, \
+                   Type, Tuple, Hashable
 from lru import LRU
 import requests
+
+ITEM_CACHE = Dict[Tuple[str, Type['Youtube']], 'Youtube']
 
 class Youtube(requests.Session):
     """
@@ -14,19 +17,16 @@ class Youtube(requests.Session):
     ENDPOINT_BASE = ''
     AUTH: Dict[str, str]
     AUTH = {}
-    _CACHE: Dict[Tuple[str, Type['Youtube']], 'Youtube'] = LRU(128)
+    _CACHE: ITEM_CACHE = cast(ITEM_CACHE, LRU(128))
 
     def __new__(cls, id: str = '', **kwargs):
         """
         This allows us to cache multiple requests for the same object
         """
         if (id, cls) not in cls._CACHE:
-            print("New thing {}".format(id))
             instance = super(Youtube, cls).__new__(cls)
             instance.__init__(id=id, cached=False, **kwargs)
             cls._CACHE[(id, cls)] = instance
-        else:
-            print("old thing {}".format(id))
 
         return cls._CACHE[(id, cls)]
 
@@ -42,7 +42,6 @@ class Youtube(requests.Session):
             # value
             return
         #pylint: disable=invalid-name
-        print("INIT CALLED")
         super().__init__()
         self.id = id # pylint: disable=invalid-name
         if key:
@@ -148,6 +147,14 @@ class Youtube(requests.Session):
         self._json = None
         self._CACHE.pop((self.id, type(self)))
 
+    def __repr__(self):
+        if self.id:
+            return f"<{self.__class__.__name__}:{self.id}>"
+        return f"<{self.__class__.__name__}>"
+
+    def __str__(self):
+        return repr(self)
+
 
 # these need to be at the bottom or neither can import the other
 # pylint: disable=wrong-import-position
@@ -161,7 +168,7 @@ class Kind(NamedTuple):
     Convienence type for dealing with getting id from things
     """
     key: str
-    kind: 'Youtube'
+    kind: Type['Youtube']
 
 KIND_MAPPING = {
     'youtube#video': Kind(key='videoId', kind=video.Video),

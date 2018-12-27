@@ -12,6 +12,7 @@ class Channel(youtube.Youtube):
 
     def videos(self,
                query: Optional[str] = None,
+               limit: Optional[int] = None,
                params: Optional[Dict[str, str]] = None,
                **kwargs: Any):
         """
@@ -21,6 +22,7 @@ class Channel(youtube.Youtube):
             params = {}
         params.update({
             'type': 'video',
-            'channelId': self.id
+            'channelId': self.id,
+            'maxResults': params.get('maxResults', limit)
             })
         return self.search(query=query, params=params, **kwargs)
