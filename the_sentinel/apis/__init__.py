@@ -83,14 +83,15 @@ class RestBase(requests.Session):
         self._CACHE.pop((self.id, type(self)))
 
     @classmethod
-    def match(cls, url: str) -> Match:
+    def match(cls, url: str) -> Optional[Match]:
         return cls.URL_REGEX.search(url)
 
     @classmethod
     def from_url(cls, url: str) -> Optional['RestBase']:
         m = cls.match(url)
-        if m:
-            return cls(id=m.group('id'))
+        if not m:
+            return None
+        return cls(id=m.group('id'))
 
     def __repr__(self):
         if self.id:

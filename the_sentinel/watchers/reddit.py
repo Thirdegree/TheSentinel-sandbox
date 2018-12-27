@@ -1,12 +1,16 @@
 """
 Classes dedicated to watching and gathering posts and comments from reddit
 """
-from typing import Union, Callable, Any, Optional, List
+from typing import Union, Callable, Any, Optional, List, TYPE_CHECKING
 import asyncio
 import praw
 # types
 # pylint: disable=invalid-name
 StreamTarget = Callable[..., praw.models.ListingGenerator]
+if TYPE_CHECKING:
+    RedditQueue = asyncio.Queue[praw.models.reddit.base.RedditBase]
+else:
+    RedditQueue = asyncio.Queue
 # pylint: enable=invalid-name
 
 class RedditWatcher:
@@ -17,7 +21,7 @@ class RedditWatcher:
                  reddit: praw.Reddit,
                  watchers: Optional[List['SubredditWatcher']] = None):
         self.reddit = reddit
-        self._outqueue: asyncio.Queue[praw.models.reddit.base.RedditBase]
+        self._outqueue: RedditQueue
         self._outqueue = asyncio.Queue()
 
         if watchers is None:
@@ -59,9 +63,7 @@ class SubredditWatcher:
     def __init__(self,
                  reddit: praw.Reddit,
                  subreddit: Union[praw.models.Subreddit, str],
-                 queue: Optional[
-                     'asyncio.Queue[praw.models.reddit.base.RedditBase]'
-                     ] = None):
+                 queue: Optional[RedditQueue] = None):
         self.reddit = reddit
 
         if queue is None:
