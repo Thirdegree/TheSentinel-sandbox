@@ -29,13 +29,13 @@ class RedditWatcher:
         self.watchers: List[SubredditWatcher]
         self.watchers = watchers
 
-    def watch(self, pause_after: int = -1, **kwargs: Any):
+    def watch(self, **kwargs: Any):
         """
         Creates tasks for all watcher instances, passing down stream arguments
         """
         for watcher in self.watchers:
             asyncio.get_event_loop().create_task(
-                watcher.watch(pause_after=pause_after, **kwargs)
+                watcher.watch(**kwargs)
                 )
 
     def add_watcher(self, subreddit: Union[praw.models.Subreddit, str]):
@@ -90,6 +90,9 @@ class SubredditWatcher:
 
     async def watch(self,
                     stream_target: Optional[StreamTarget] = None,
+                    item_callback: Callable[
+                        [praw.models.reddit.base.RedditBase],
+                        Any] = lambda x: x,
                     pause_after: int = -1,
                     **kwargs: Any):
         """
@@ -102,7 +105,9 @@ class SubredditWatcher:
         if stream_target is None:
             for stream in self._streams:
                 asyncio.get_event_loop().create_task(
-                    self.watch(stream, pause_after=pause_after, **kwargs))
+                    self.watch(stream,
+                               item_callback=item_callback,
+                               pause_after=pause_after, **kwargs))
             return
 
         if stream_target in self.watching:
@@ -114,7 +119,7 @@ class SubredditWatcher:
             if item is None:
                 await asyncio.sleep(0)
                 continue
-            await self._outqueue.put(item)
+            await self._outqueue.put(item_callback(item))
 
     def kill(self): # pragma: no cover
         """
