@@ -46,15 +46,15 @@ def test_caching():
         ('rest-base.com', ['api', 'latest'], 'api-endpoint','other-endpoint' ,
             'rest-base.com/api/latest/other-endpoint'),
         ])
-def test_format_url(rest_base,
+def test_format_url(mocker, rest_base,
                     API_BASE,
                     REST_BASE,
                     ENDPOINT_BASE,
                     endpoint,
                     target_url):
-    rest_base.REST_BASE = REST_BASE
-    rest_base.ENDPOINT_BASE = ENDPOINT_BASE
-    rest_base.API_BASE = API_BASE
+    mocker.patch.object(rest_base, 'REST_BASE', new=REST_BASE)
+    mocker.patch.object(rest_base, 'ENDPOINT_BASE', new=ENDPOINT_BASE)
+    mocker.patch.object(rest_base, 'API_BASE', new=API_BASE)
     assert rest_base.format_url(endpoint) == target_url
 
 
