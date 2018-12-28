@@ -35,6 +35,7 @@ class Youtube(RestBase):
         # these apis ALWAYS return a list even if it's explicitly a single
         # thing
         if self._json is None:
+            print(self.resp.json())
             self._json = next(
                 filter(
                     lambda x: self._getid(x) == self.id,
@@ -61,9 +62,13 @@ class Youtube(RestBase):
             'part': 'snippet',
             'key': self.AUTH.get('key', '')
             })
-        return super().request(method, url, params=params, **kwargs)
+        resp = super().request(method, url, params=params, **kwargs)
+        if resp.status_code == 400:
+            raise RuntimeError("Authentication issue with Youtube api")
 
-    def search(self, endpoint='', query='', params=None,
+        return resp
+
+    def search(self, query='', endpoint='', params=None,
                limit: Optional[int] = None, **kwargs):
         """
         Searches youtube for ANY kinds that match these values
@@ -78,18 +83,13 @@ class Youtube(RestBase):
         resp = self.get(url=endpoint, params=params, **kwargs)
         ret = []
         for item in resp.json()['items']:
-            try:
-                item_id, kind = KIND_MAPPING[item['kind']](item)
-            except KeyError:
-                from pprint import pprint
-                pprint(item)
-                raise
+            item_id, kind = KIND_MAPPING[item['kind']](item)
             item = kind(id=item_id, resp=resp)
             ret.append(item)
         return ret
 
     @property
-    def title(self):
+    def title(self): # pragma: no cover
         """
         Gets a title from an object.
         If used on base Youtube objects, will raise a requests exception

@@ -64,7 +64,7 @@ class RestBase(requests.Session):
         raise NotImplementedError
 
     @property
-    def json(self) -> Any:
+    def json(self) -> Any: # pragma: no cover
         """
         Allows for lazy getting of json representation
         should probably be overridden, but doesn't have to be
@@ -112,7 +112,7 @@ class RestBase(requests.Session):
         None otherwise
         """
         match = cls.match(url)
-        if not match:
+        if not match: # pragma: no cover
             return None
         return cls(id=match.group('id'))
 
@@ -121,7 +121,7 @@ class RestBase(requests.Session):
             return f"<{self.__class__.__name__}:{self.id}>"
         return f"<{self.__class__.__name__}>"
 
-    def __str__(self):
+    def __str__(self): # pragma: no cover
         return repr(self)
 
     def __hash__(self):
@@ -130,5 +130,5 @@ class RestBase(requests.Session):
     def __eq__(self, other):
         return hash(self) == hash(other)
 
-    def __ne__(self, other):
+    def __ne__(self, other): # pragma: no cover
         return not self == other

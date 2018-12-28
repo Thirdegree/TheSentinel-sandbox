@@ -7,7 +7,7 @@ import praw
 # types
 # pylint: disable=invalid-name
 StreamTarget = Callable[..., praw.models.ListingGenerator]
-if TYPE_CHECKING:
+if TYPE_CHECKING: # pragma: no cover
     RedditQueue = asyncio.Queue[praw.models.reddit.base.RedditBase]
 else:
     RedditQueue = asyncio.Queue
@@ -48,7 +48,7 @@ class RedditWatcher:
                 "You may not have multiple watchers for a single subreddit")
         self.watchers.append(watcher)
 
-    def kill(self):
+    def kill(self): # pragma: no cover
         """
         Cleanly kill all watchers
         """
@@ -72,7 +72,7 @@ class SubredditWatcher:
 
         if isinstance(subreddit, str):
             self.subreddit = self.reddit.subreddit(subreddit)
-        else:
+        else: # pragma: no cover
             self.subreddit = subreddit
 
         self._streams = [self.subreddit.stream.comments,
@@ -102,16 +102,14 @@ class SubredditWatcher:
         if stream_target in self.watching:
             raise RuntimeError("You may only watch a given stream one time")
         self.watching.append(stream_target)
-
         for item in stream_target(pause_after=pause_after, **kwargs):
             if self._kill:
                 break
             if item is None:
-                await asyncio.sleep(0)
                 continue
             await self._outqueue.put(item)
 
-    def kill(self):
+    def kill(self): # pragma: no cover
         """
         Cleanly kill all watched streams
         """

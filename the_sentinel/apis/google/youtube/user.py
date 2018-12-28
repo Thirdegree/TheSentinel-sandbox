@@ -20,7 +20,8 @@ class User(Channel):
         return self._resp
 
     @property
-    def json(self):
+    def json(self): # pragma: no cover
+        # too simple to do test coverage
         if self._json is None:
             self._json = next(iter(self.resp.json()['items']))
         return self._json
