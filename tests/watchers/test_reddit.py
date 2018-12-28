@@ -20,6 +20,22 @@ def subwatcher():
 def redditwatcher():
     return RedditWatcher(reddit=reddit())
 
+@pytest.mark.asyncio
+async def test_subwatcher_watch_callback(mocker, subwatcher):
+    outqueue_mock = mocker.patch.object(subwatcher, '_outqueue',
+                                        new=CoroutineMock(name='put_mock'))
+    outqueue_mock.put = CoroutineMock()
+    stream_target_mock = mocker.MagicMock(name='stream_target')
+    stream_target_mock.return_value = iter(
+           ['a', 'b', None, 'c'])
+
+    callback = MagicMock(name='callback')
+    await subwatcher.watch(item_callback=callback,
+                           pause_after=-1,
+                           stream_target=stream_target_mock)
+
+    stream_target_mock.assert_called_with(pause_after=-1)
+    callback.assert_has_calls([call('a'), call('b'), call('c')])
 
 @pytest.mark.asyncio
 async def test_subwatcher_watch(mocker, subwatcher):
