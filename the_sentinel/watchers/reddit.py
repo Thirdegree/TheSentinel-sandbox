@@ -55,6 +55,12 @@ class RedditWatcher:
         for watcher in self.watchers:
             watcher.kill()
 
+    async def get(self): # pragma: no cover
+        """
+        Trivial wrapper for asyncio.Queue.get
+        """
+        return await self._outqueue.get()
+
 class SubredditWatcher:
     """
     Gathers comments, submissions (any RedditBase derived classes) from a
@@ -106,6 +112,7 @@ class SubredditWatcher:
             if self._kill:
                 break
             if item is None:
+                await asyncio.sleep(0)
                 continue
             await self._outqueue.put(item)
 
@@ -114,3 +121,9 @@ class SubredditWatcher:
         Cleanly kill all watched streams
         """
         self._kill = True
+
+    async def get(self): # pragma: no cover
+        """
+        Trivial wrapper for asyncio.Queue.get
+        """
+        return await self._outqueue.get()
